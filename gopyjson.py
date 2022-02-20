@@ -267,121 +267,65 @@ class Array(GoType):
                     ''')
                     self.element_type.trim(f'&(*v)[{i}]')
                 wls('''
-                trimLeftSpace(b, N)
                 pTrimByte(b, N, ']')
                 ''')
 
 
+class Tuple(GoType):
+    def __init__(self, fields: dict[str, GoType], typename: str = '', **kwargs):
+        super().__init__(typename=typename, **kwargs)
+        self.fields: dict[str, GoType] = fields
 
-# class Tuple(GoType):
-#     def __init__(self, fields: dict[str, GoType], **kwargs):
-#         super().__init__(**kwargs)
-#         self.fields: dict[str, GoType] = fields
-#
-#     def type_eq(self, other) -> bool:
-#         return super().type_eq(other) and len(other.fields) == len(self.fields) and all(k1 == k2 and t1.type_eq(t2) for ((k1, t1), (k2, t2)) in zip(self.fields.items(), other.fields.items()))
-#
-#     def long_typename(self):
-#         w(f'struct {{')
-#         if self.fields:
-#             with Indent():
-#                 for k, v in self.fields.items():
-#                     wl(f'{k} ')
-#                     v.print_type()
-#             wl('}')
-#         else:
-#             w('}')
-#
-#     def generate_type(self):
-#         for t in self.fields.values():
-#             t.generate_type()
-#         super().generate_type()
-#
-#     def generate_func(self):
-#         for t in self.fields.values():
-#             t.generate_func()
-#         new, f = AddGeneratedFunc(self)
-#         if new:
-#             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-#             self.print_type()
-#             w(') ')
-#             with Block(new_line=False):
-#                 wls('''
-#                 var nonEmpty bool
-#                 pTrimByte(b, N, '{')
-#                 trimLeftSpace(b, N)
-#                 ''')
-# class Tuple(GoType):
-#     def __init__(self, fields: dict[str, GoType], **kwargs):
-#         super().__init__(**kwargs)
-#         self.fields = fields
-#
-#     def generate_type(self):
-#         for element_type in self.elements.values():
-#             element_type.generate_type()
-#         if not self.deep['type_defined'] and self.typename:
-#             self.deep['type_defined'] = True
-#             AddType(self.typename)
-#             wl(f'type {self.typename} struct {{')
-#             if self.fields:
-#                 with Indent():
-#                     for k, v in self.fields.items():
-#                         wl(f'{k}')
-#                         wl(f'{k} {v.typename}')
-#                 wl('}')
-#             else:
-#                 w('}')
-#
-#             wl(f'type {self.typename} [{self.size}]{self.element_type.typename}')
-#         if not self.deep['fun_defined']:
-#             self.deep['fun_defined'] = True
-#             with Func(f'pTrim__{self.gen_name}(b *[]byte, N *int, v *{self.typename})'):
-#                 wls('''
-#                 pTrimByte(b, N, '[')
-#                 trimLeftSpace(b, N)
-#                 ''')
-#                 self.element_type.trim('&(*v)[0]')
-#                 for i in range(1, self.size):
-#                     wls('''
-#                     trimLeftSpace(b, N)
-#                     pTrimByte(b, N, ',')
-#                     trimLeftSpace(b, N)
-#                     ''')
-#                     self.element_type.trim(f'&(*v)[{i}]')
-#                 wls('''
-#                 trimLeftSpace(b, N)
-#                 pTrimByte(b, N, ']')
-#                 ''')
-#
-#     def generate_type(self):
-#         (self, pvar: str):
-#
-#     wls('''
-#         pTrimByte(b, N, '[')
-#         trimLeftSpace(b, N)
-#         ''')
-#     for i, (k, t) in enumerate(self.elements.items()):
-#         if i > 0:
-#             t.trim(field_pointer(pvar, k))
-#     for i in range(1, self.size):
-#         wls('''
-#             trimLeftSpace(b, N)
-#             pTrimByte(b, N, ',')
-#             trimLeftSpace(b, N)
-#             ''')
-#         self.element_type.trim('&' + index(pvar, str(i)))
-#     wls('''
-#         trimLeftSpace(b, N)
-#         pTrimByte(b, N, ']')
-#         ''')
-#
-#
-# def zero(self, pvar: str):
-#     wl(f'{dereference(pvar)} = {self.typename}{{}}')
-#
-#
-# def _gen(self):
-#     self.element_type._gen()
+    def type_eq(self, other) -> bool:
+        return super().type_eq(other) and len(other.fields) == len(self.fields) and all(
+            k1 == k2 and t1.type_eq(t2) for ((k1, t1), (k2, t2)) in zip(self.fields.items(), other.fields.items()))
+
+    def func_eq(self, other) -> bool:
+        return self.type_eq(other) and all(
+            k1 == k2 and t1.func_eq(t2) for ((k1, t1), (k2, t2)) in zip(self.fields.items(), other.fields.items()))
+
+    def long_typename(self):
+        w(f'struct {{')
+        if self.fields:
+            with Indent():
+                for k, v in self.fields.items():
+                    wl(f'{k} ')
+                    v.print_type()
+            wl('}')
+        else:
+            w('}')
+
+    def generate_type(self):
+        for t in self.fields.values():
+            t.generate_type()
+        super().generate_type()
+
+    def generate_func(self):
+        for t in self.fields.values():
+            t.generate_func()
+        new, f = AddGeneratedFunc(self)
+        if new:
+            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
+            self.print_type()
+            w(') ')
+            with Block(new_line=False):
+                wls('''
+                pTrimByte(b, N, '[')
+                trimLeftSpace(b, N)
+                ''')
+                for i, (key, t) in enumerate(self.fields.items()):
+                    if i > 0:
+                        wls('''
+                        trimLeftSpace(b, N)
+                        pTrimByte(b, N, ',')
+                        trimLeftSpace(b, N)
+                        ''')
+                    t.trim(field_pointer('v', key))
+                wl("pTrimByte(b, N, ']')")
+
+    def zero(self, pvar: str):
+        for k, t in self.fields.items():
+            t.zero(field_pointer(pvar, k))
 
 
 class Slice(GoType):
@@ -463,7 +407,8 @@ class Struct(GoType):
             zip(self.fields.items(), other.fields.items()))
 
     def func_eq(self, other) -> bool:
-        return self.type_eq(other) and all(k1 == k2 and t1.func_eq(t2) for ((k1, t1), (k2, t2)) in zip(self.fields.items(), other.fields.items())) and self.names == other.names
+        return self.type_eq(other) and all(k1 == k2 and t1.func_eq(t2) for ((k1, t1), (k2, t2)) in
+                                           zip(self.fields.items(), other.fields.items())) and self.names == other.names
 
     def long_typename(self):
         w(f'struct {{')

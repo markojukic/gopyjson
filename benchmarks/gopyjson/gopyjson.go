@@ -180,7 +180,6 @@ func pTrim__2(b *[]byte, N *int, v *[2]float64) {
 	pTrimByte(b, N, ',')
 	trimLeftSpace(b, N)
 	(*v)[1] = pTrimFloat64(b, N)
-	trimLeftSpace(b, N)
 	pTrimByte(b, N, ']')
 }
 func pTrim__3(b *[]byte, N *int, v *[][2]float64) {
