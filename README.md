@@ -4,7 +4,7 @@
 Python is well known for its expressiveness, so you will be able to define complex objects and customize how they are parsed in only a few lines of code.
 ### Speed
 When comparing the speeed of unmarshalling JSON into a Go struct, gopyjson was more than **4x faster** than other available parsers, and **13x faster** than `encoding/json`.
-The difference depends on the dataset, see Benchmarks for more details.
+The difference depends on the dataset, see [Benchmarks](#benchmarks) for more details.
 ### Extensible, with support for many types
 Most of the native Go types are supported.
 Using this module, it is possible to generate parsers for variable type arrays like `["8552.90000","0.03190270",1559347203.7998,"s","m",""]`, and unmarshall them into a Go struct.
