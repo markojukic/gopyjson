@@ -126,21 +126,23 @@ Two large files with newline-delimited json (ndjson) objects were used.
 - `2.ndjson` contains FTX orderbook data, this dataset contains json objects as in the example above.
 ### Results
 Make sure to disable CPU frequency boosting before running the benchmarks on your machine.
+
+To run the benchmarks, first `cd` into the `benchmarks` directory and then run the commands below.
 ```
-$ cd benchmarks && go test -bench Benchmark1 -benchmem -benchtime=100000x -count=10 | python benchmark_average.py
-Benchmark1GopyjsonUnsafe-16    1000000     564.7 ns/op                     0.0 B/op     0.0 allocs/op
-Benchmark1GopyjsonSafe-16      1000000     745.6 ns/op  (1.3x slower)     32.0 B/op     2.0 allocs/op
-Benchmark1Simdjson-16          1000000    5045.2 ns/op  (8.9x slower)    665.0 B/op    11.0 allocs/op
-Benchmark1Jsoniter-16          1000000    5083.0 ns/op  (9.0x slower)    528.0 B/op    10.0 allocs/op
-Benchmark1EncodingJson-16      1000000    6425.4 ns/op (11.4x slower)    512.0 B/op     9.0 allocs/op
-Benchmark1FFjson-16            1000000    6613.1 ns/op (11.7x slower)    512.0 B/op     9.0 allocs/op
+$ go test -bench Benchmark1 -benchmem -benchtime=100000x -count=10 | python benchmark_average.py
+Benchmark1GopyjsonUnsafe-16    1000000     543 ns/op                     0 B/op     0 allocs/op
+Benchmark1GopyjsonSafe-16      1000000     762 ns/op  (1.4x slower)     32 B/op     2 allocs/op
+Benchmark1Simdjson-16          1000000    5025 ns/op  (9.3x slower)    665 B/op    11 allocs/op
+Benchmark1Jsoniter-16          1000000    5078 ns/op  (9.3x slower)    528 B/op    10 allocs/op
+Benchmark1EncodingJson-16      1000000    6395 ns/op (11.8x slower)    512 B/op     9 allocs/op
+Benchmark1FFjson-16            1000000    6522 ns/op (12.0x slower)    512 B/op     9 allocs/op
 ```
 ```
-$ cd benchmarks && go test -bench Benchmark2 -benchmem -benchtime=100000x -count=10 | python benchmark_average.py
-Benchmark2GopyjsonUnsafe-16    1000000     1852.9 ns/op                      0.0 B/op     0.0 allocs/op
-Benchmark2GopyjsonSafe-16      1000000     2200.2 ns/op  (1.2x slower)      32.0 B/op     4.0 allocs/op
-Benchmark2Simdjson-16          1000000     7200.2 ns/op  (3.9x slower)     795.0 B/op    12.0 allocs/op
-Benchmark2Jsoniter-16          1000000    21312.7 ns/op (11.5x slower)    1601.0 B/op    43.0 allocs/op
-Benchmark2EncodingJson-16      1000000    24269.2 ns/op (13.1x slower)    1436.0 B/op    35.0 allocs/op
-Benchmark2FFjson-16            1000000    24435.7 ns/op (13.2x slower)    1436.0 B/op    35.0 allocs/op
+$ go test -bench Benchmark2 -benchmem -benchtime=100000x -count=10 | python benchmark_average.py
+Benchmark2GopyjsonUnsafe-16    1000000     1885 ns/op                      0 B/op     0 allocs/op
+Benchmark2GopyjsonSafe-16      1000000     2200 ns/op  (1.2x slower)      32 B/op     4 allocs/op
+Benchmark2Simdjson-16          1000000     7185 ns/op  (3.8x slower)     795 B/op    12 allocs/op
+Benchmark2Jsoniter-16          1000000    21357 ns/op (11.3x slower)    1601 B/op    43 allocs/op
+Benchmark2EncodingJson-16      1000000    24533 ns/op (13.0x slower)    1436 B/op    35 allocs/op
+Benchmark2FFjson-16            1000000    24830 ns/op (13.2x slower)    1436 B/op    35 allocs/op
 ```

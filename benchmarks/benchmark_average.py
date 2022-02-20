@@ -55,5 +55,5 @@ def print_table(rows: list, just: list[int]):
 
 
 print_table([
-    [k, N[k], f'{summary[k][0]:.1f} ns/op', summary[k][3], f'{summary[k][1]:.1f} B/op', f'{summary[k][2]:.1f} allocs/op'] for k in index
+    [k, N[k], f'{summary[k][0]:.0f} ns/op', summary[k][3], f'{summary[k][1]:.0f} B/op', f'{summary[k][2]:.0f} allocs/op'] for k in index
 ], [4, 0, -4, -1, -4, -4])
