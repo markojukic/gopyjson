@@ -123,7 +123,7 @@ Two large files with newline-delimited json (ndjson) objects were used.
     "M": true
 }
 ```
-- `2.ndjson` contains FTX orderbook data, this dataset contains json objects as in the example above.
+- `2.ndjson` contains FTX orderbook data, this dataset contains json objects as in the [example](#examples) above.
 ### Results
 Make sure to disable CPU frequency boosting before running the benchmarks on your machine.
 
