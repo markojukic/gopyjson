@@ -3,7 +3,7 @@
 ### Easily define your JSON types
 Python is well known for its expressiveness, so you will be able to define complex objects and customize how they are parsed in only a few lines of code.
 ### Speed
-When comparing the speeed of unmarshalling JSON into a Go struct, gopyjson was more than **4x faster** than other available parsers, and **13x faster** than `encoding/json`.
+When comparing the speeed of unmarshalling JSON into a Go struct, gopyjson was **4x faster** than other popular parsers, and **13x faster** than `encoding/json`.
 The difference depends on the dataset, see [Benchmarks](#benchmarks) for more details.
 ### Extensible, with support for many types
 Most of the native Go types are supported.
@@ -106,7 +106,7 @@ func main() {
 }
 ```
 ## Benchmarks
-The package was developed for parsing large amounts of market data, and the benchmarks are comparing the speed of parsing such data.
+The package was developed for parsing large amounts of market data, so the benchmarks are comparing the speed of parsing such data.
 ### Data
 Two large files with newline-delimited json (ndjson) objects were used.
 
