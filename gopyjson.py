@@ -258,17 +258,15 @@ class Array(GoType):
                 pTrimByte(b, N, '[')
                 trimLeftSpace(b, N)
                 ''')
-                self.element_type.trim('&(*v)[0]')
-                for i in range(1, self.size):
-                    wls('''
-                    trimLeftSpace(b, N)
-                    pTrimByte(b, N, ',')
-                    trimLeftSpace(b, N)
-                    ''')
-                    self.element_type.trim(f'&(*v)[{i}]')
-                wls('''
-                pTrimByte(b, N, ']')
-                ''')
+                for i in range(self.size):
+                    if i > 0:
+                        wls('''
+                        pTrimByte(b, N, ',')
+                        trimLeftSpace(b, N)
+                        ''')
+                    self.element_type.trim('&' + index('v', str(i)))
+                    wl('trimLeftSpace(b, N)')
+                wl("pTrimByte(b, N, ']')")
 
 
 class Tuple(GoType):
@@ -316,11 +314,11 @@ class Tuple(GoType):
                 for i, (key, t) in enumerate(self.fields.items()):
                     if i > 0:
                         wls('''
-                        trimLeftSpace(b, N)
                         pTrimByte(b, N, ',')
                         trimLeftSpace(b, N)
                         ''')
                     t.trim(field_pointer('v', key))
+                    wl('trimLeftSpace(b, N)')
                 wl("pTrimByte(b, N, ']')")
 
     def zero(self, pvar: str):
@@ -358,7 +356,7 @@ class Slice(GoType):
                 element_var = f'var__{AddGeneratedFunc(self.element_type)[1]}'
                 wl(f'var {element_var} ')
                 self.element_type.print_type()
-                with WLS('''
+                wls('''
                 pTrimByte(b, N, '[')
                 trimLeftSpace(b, N)
                 if *N >= len(*b) {
@@ -366,31 +364,30 @@ class Slice(GoType):
                 }
                 if (*b)[*N] == ']' {
                     *N++
-                } else {
-                    {{}}
+                    return
                 }
-                '''):
-                    self.element_type.trim('&' + element_var)
-                    with WLS('''
-                    *v = append(*v, {0})
-                    for {
-                        trimLeftSpace(b, N)
-                        if *N >= len(*b) {
-                            panic(ParseError{*b, *N, "unexpected end of array"})
-                        }
-                        if (*b)[*N] == ']' {
-                            *N++
-                            break
-                        }
-                        pTrimByte(b, N, ',')
-                        trimLeftSpace(b, N)
-                        {{}}
-                        *v = append(*v, {0})
+                ''')
+                self.element_type.trim('&' + element_var)
+                with WLS('''
+                *v = append(*v, {0})
+                for {
+                    trimLeftSpace(b, N)
+                    if *N >= len(*b) {
+                        panic(ParseError{*b, *N, "unexpected end of array"})
                     }
-                    ''', element_var):
-                        wl(f'var {element_var} ')
-                        self.element_type.print_type()
-                        self.element_type.trim('&' + element_var)
+                    if (*b)[*N] == ']' {
+                        *N++
+                        return
+                    }
+                    pTrimByte(b, N, ',')
+                    trimLeftSpace(b, N)
+                    {{}}
+                    *v = append(*v, {0})
+                }
+                ''', element_var):
+                    wl(f'var {element_var} ')
+                    self.element_type.print_type()
+                    self.element_type.trim('&' + element_var)
 
 
 class Struct(GoType):
