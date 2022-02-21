@@ -223,14 +223,14 @@ func benchmarkSimdjsonFTXOrderbook(b *testing.B, filename string) {
 	}
 }
 
-func benchmarkFFjson(b *testing.B, filename string, data json.Unmarshaler) {
+func benchmarkFFjson(b *testing.B, filename string, data interface{}) {
 	buf, newLines := loadFile(filename)
 	var err error
 	var line []byte
 	b.ResetTimer()
 	for i := 1; i <= b.N; i++ {
 		line = buf[newLines[i-1]+1 : newLines[i]]
-		if err = ffjson.Unmarshal(line, &data); err != nil {
+		if err = ffjson.Unmarshal(line, data); err != nil {
 			panic(err)
 		}
 	}
