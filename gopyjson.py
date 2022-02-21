@@ -180,30 +180,53 @@ class Float64WithSrc(GoType):
 
 
 class String(GoType):
-    def __init__(self, copy: bool = True, validate_utf8: bool = True, **kwargs):
+    def __init__(self, copy: bool = True, validate_utf8: bool = True, unquote: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.copy = copy
         self.validate_utf8 = validate_utf8
+        self.unquote = unquote
 
     def trim(self, pvar: str):
         if self.typename:
-            if self.copy:
-                wl(f'{dereference(pvar)} = {self.typename}(pTrimStringBytes(b, N))')
+            if self.unquote:
+                with Block():
+                    wls('''
+                    s := pTrimStringBytes(b, N)
+                    s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+                    if !ok {
+                        panic(ParseError{*b, *N, errUnquote})
+                    }
+                    ''')
+                    wl(f'{dereference(pvar)} = {self.typename}(s)')
             else:
-                wl(f'{dereference(pvar)} = {self.typename}(bytesToString(pTrimStringBytes(b, N)))')
-            if self.validate_utf8:
-                Import('unicode/utf8')
-                with If(f'!utf8.ValidString(string({dereference(pvar)}))'):
-                    wl('panic(ParseError{*b, *N, errUTF8})')
+                if self.copy:
+                    wl(f'{dereference(pvar)} = {self.typename}(pTrimStringBytes(b, N))')
+                else:
+                    wl(f'{dereference(pvar)} = {self.typename}(bytesToString(pTrimStringBytes(b, N)))')
+                if self.validate_utf8 and not self.unquote:
+                    Import('unicode/utf8')
+                    with If(f'!utf8.ValidString(string({dereference(pvar)}))'):
+                        wl('panic(ParseError{*b, *N, errUTF8})')
         else:
-            if self.copy:
-                wl(f'{dereference(pvar)} = string(pTrimStringBytes(b, N))')
+            if self.unquote:
+                with Block():
+                    wls('''
+                    s := pTrimStringBytes(b, N)
+                    s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+                    if !ok {
+                        panic(ParseError{*b, *N, errUnquote})
+                    }
+                    ''')
+                    wl(f'{dereference(pvar)} = string(s)')
             else:
-                wl(f'{dereference(pvar)} = bytesToString(pTrimStringBytes(b, N))')
-            if self.validate_utf8:
-                Import('unicode/utf8')
-                with If(f'!utf8.ValidString({dereference(pvar)})'):
-                    wl('panic(ParseError{*b, *N, errUTF8})')
+                if self.copy:
+                    wl(f'{dereference(pvar)} = string(pTrimStringBytes(b, N))')
+                else:
+                    wl(f'{dereference(pvar)} = bytesToString(pTrimStringBytes(b, N))')
+                if self.validate_utf8 and not self.unquote:
+                    Import('unicode/utf8')
+                    with If(f'!utf8.ValidString({dereference(pvar)})'):
+                        wl('panic(ParseError{*b, *N, errUTF8})')
 
     def zero(self, pvar: str):
         wl(f'{dereference(pvar)} = ""')
@@ -220,7 +243,7 @@ class String(GoType):
 
 class UnsafeString(String):
     def __init__(self, **kwargs):
-        super().__init__(copy=False, validate_utf8=False, **kwargs)
+        super().__init__(copy=False, validate_utf8=False, unquote=False, **kwargs)
 
 
 class Array(GoType):

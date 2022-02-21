@@ -130,19 +130,19 @@ Make sure to disable CPU frequency boosting before running the benchmarks on you
 To run the benchmarks, first `cd` into the `benchmarks` directory and then run the commands below.
 ```
 $ go test -bench Benchmark1 -benchmem -benchtime=100000x -count=10 | python benchmark_average.py
-Benchmark1GopyjsonUnsafe-16    1000000     543 ns/op                     0 B/op     0 allocs/op
-Benchmark1GopyjsonSafe-16      1000000     762 ns/op  (1.4x slower)     32 B/op     2 allocs/op
-Benchmark1Simdjson-16          1000000    5025 ns/op  (9.3x slower)    665 B/op    11 allocs/op
-Benchmark1Jsoniter-16          1000000    5078 ns/op  (9.3x slower)    528 B/op    10 allocs/op
-Benchmark1EncodingJson-16      1000000    6395 ns/op (11.8x slower)    512 B/op     9 allocs/op
-Benchmark1FFjson-16            1000000    6522 ns/op (12.0x slower)    512 B/op     9 allocs/op
+Benchmark1GopyjsonUnsafe-16    1000000     534 ns/op                     0 B/op     0 allocs/op
+Benchmark1GopyjsonSafe-16      1000000     755 ns/op  (1.4x slower)     32 B/op     2 allocs/op
+Benchmark1Jsoniter-16          1000000    5150 ns/op  (9.7x slower)    528 B/op    10 allocs/op
+Benchmark1Simdjson-16          1000000    5158 ns/op  (9.7x slower)    665 B/op    11 allocs/op
+Benchmark1EncodingJson-16      1000000    6462 ns/op (12.1x slower)    512 B/op     9 allocs/op
+Benchmark1FFjson-16            1000000    6678 ns/op (12.5x slower)    512 B/op     9 allocs/op
 ```
 ```
 $ go test -bench Benchmark2 -benchmem -benchtime=100000x -count=10 | python benchmark_average.py
-Benchmark2GopyjsonUnsafe-16    1000000     1885 ns/op                      0 B/op     0 allocs/op
-Benchmark2GopyjsonSafe-16      1000000     2200 ns/op  (1.2x slower)      32 B/op     4 allocs/op
-Benchmark2Simdjson-16          1000000     7185 ns/op  (3.8x slower)     795 B/op    12 allocs/op
-Benchmark2Jsoniter-16          1000000    21357 ns/op (11.3x slower)    1601 B/op    43 allocs/op
-Benchmark2EncodingJson-16      1000000    24533 ns/op (13.0x slower)    1436 B/op    35 allocs/op
-Benchmark2FFjson-16            1000000    24830 ns/op (13.2x slower)    1436 B/op    35 allocs/op
+Benchmark2GopyjsonUnsafe-16    1000000     1855 ns/op                      0 B/op     0 allocs/op
+Benchmark2GopyjsonSafe-16      1000000     2305 ns/op  (1.2x slower)      32 B/op     4 allocs/op
+Benchmark2Simdjson-16          1000000     7103 ns/op  (3.8x slower)     795 B/op    12 allocs/op
+Benchmark2Jsoniter-16          1000000    21251 ns/op (11.5x slower)    1601 B/op    43 allocs/op
+Benchmark2EncodingJson-16      1000000    24187 ns/op (13.0x slower)    1436 B/op    35 allocs/op
+Benchmark2FFjson-16            1000000    24490 ns/op (13.2x slower)    1436 B/op    35 allocs/op
 ```

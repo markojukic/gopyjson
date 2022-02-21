@@ -23,6 +23,7 @@ const (
 	errEofString      = "EOF, expected string"
 	errEofKey         = "EOF, expected key"
 	errEofValue       = "EOF, expected value"
+	errUnquote        = "failed to unquote string"
 	errUnexpectedKey  = "unexpected key \""
 	errExpectedByte   = "expected '"
 	errExpectedString = "expected string"
@@ -373,3 +374,6 @@ func pTrimValue(b *[]byte, N *int) {
 type Unmarshaler interface {
 	Unmarshal([]byte) error
 }
+
+//go:linkname unquoteBytes encoding/json.unquoteBytes
+func unquoteBytes(s []byte) (t []byte, ok bool)

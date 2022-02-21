@@ -1,7 +1,4 @@
 package gopyjson
-import (
-	"unicode/utf8"
-)
 type BinanceAggTradeSafe struct {
 	A int64
 	p string
@@ -36,15 +33,23 @@ func pTrim__0(b *[]byte, N *int, v *BinanceAggTradeSafe) {
 			v.A = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case 112:
-			v.p = string(pTrimStringBytes(b, N))
-			if !utf8.ValidString(v.p) {
-				panic(ParseError{*b, *N, errUTF8})
+			{
+				s := pTrimStringBytes(b, N)
+				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+				if !ok {
+					panic(ParseError{*b, *N, errUnquote})
+				}
+				v.p = string(s)
 			}
 			trimLeftSpace(b, N)
 		case 113:
-			v.q = string(pTrimStringBytes(b, N))
-			if !utf8.ValidString(v.q) {
-				panic(ParseError{*b, *N, errUTF8})
+			{
+				s := pTrimStringBytes(b, N)
+				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+				if !ok {
+					panic(ParseError{*b, *N, errUnquote})
+				}
+				v.q = string(s)
 			}
 			trimLeftSpace(b, N)
 		case 102:
@@ -180,6 +185,7 @@ func pTrim__2(b *[]byte, N *int, v *[2]float64) {
 	pTrimByte(b, N, ',')
 	trimLeftSpace(b, N)
 	(*v)[1] = pTrimFloat64(b, N)
+	trimLeftSpace(b, N)
 	pTrimByte(b, N, ']')
 }
 func pTrim__3(b *[]byte, N *int, v *[][2]float64) {
@@ -191,24 +197,24 @@ func pTrim__3(b *[]byte, N *int, v *[][2]float64) {
 	}
 	if (*b)[*N] == ']' {
 		*N++
-	} else {
+		return
+	}
+	pTrim__2(b, N, &var__2)
+	*v = append(*v, var__2)
+	for {
+		trimLeftSpace(b, N)
+		if *N >= len(*b) {
+			panic(ParseError{*b, *N, "unexpected end of array"})
+		}
+		if (*b)[*N] == ']' {
+			*N++
+			return
+		}
+		pTrimByte(b, N, ',')
+		trimLeftSpace(b, N)
+		var var__2 [2]float64
 		pTrim__2(b, N, &var__2)
 		*v = append(*v, var__2)
-		for {
-			trimLeftSpace(b, N)
-			if *N >= len(*b) {
-				panic(ParseError{*b, *N, "unexpected end of array"})
-			}
-			if (*b)[*N] == ']' {
-				*N++
-				break
-			}
-			pTrimByte(b, N, ',')
-			trimLeftSpace(b, N)
-			var var__2 [2]float64
-			pTrim__2(b, N, &var__2)
-			*v = append(*v, var__2)
-		}
 	}
 }
 func pTrim__4(b *[]byte, N *int, v *struct {
@@ -247,9 +253,13 @@ func pTrim__4(b *[]byte, N *int, v *struct {
 			pTrim__3(b, N, &v.Asks)
 			trimLeftSpace(b, N)
 		case "action":
-			v.Action = string(pTrimStringBytes(b, N))
-			if !utf8.ValidString(v.Action) {
-				panic(ParseError{*b, *N, errUTF8})
+			{
+				s := pTrimStringBytes(b, N)
+				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+				if !ok {
+					panic(ParseError{*b, *N, errUnquote})
+				}
+				v.Action = string(s)
 			}
 			trimLeftSpace(b, N)
 		default:
@@ -275,21 +285,33 @@ func pTrim__5(b *[]byte, N *int, v *FtxOrderbookSafe) {
 		nonEmpty = true
 		switch key {
 		case "channel":
-			v.Channel = string(pTrimStringBytes(b, N))
-			if !utf8.ValidString(v.Channel) {
-				panic(ParseError{*b, *N, errUTF8})
+			{
+				s := pTrimStringBytes(b, N)
+				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+				if !ok {
+					panic(ParseError{*b, *N, errUnquote})
+				}
+				v.Channel = string(s)
 			}
 			trimLeftSpace(b, N)
 		case "market":
-			v.Market = string(pTrimStringBytes(b, N))
-			if !utf8.ValidString(v.Market) {
-				panic(ParseError{*b, *N, errUTF8})
+			{
+				s := pTrimStringBytes(b, N)
+				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+				if !ok {
+					panic(ParseError{*b, *N, errUnquote})
+				}
+				v.Market = string(s)
 			}
 			trimLeftSpace(b, N)
 		case "type":
-			v.Type = string(pTrimStringBytes(b, N))
-			if !utf8.ValidString(v.Type) {
-				panic(ParseError{*b, *N, errUTF8})
+			{
+				s := pTrimStringBytes(b, N)
+				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+				if !ok {
+					panic(ParseError{*b, *N, errUnquote})
+				}
+				v.Type = string(s)
 			}
 			trimLeftSpace(b, N)
 		case "data":
