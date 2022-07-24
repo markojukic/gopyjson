@@ -33,7 +33,8 @@ func pTrim__3(b *[]byte, N *int, v *BinanceAggTradeSafe) {
 		case 97:
 			v.A = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
-		case 112:{
+		case 112:
+			{
 				s := pTrimStringBytes(b, N)
 				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 				if !ok {
@@ -42,7 +43,8 @@ func pTrim__3(b *[]byte, N *int, v *BinanceAggTradeSafe) {
 				v.p = string(s)
 			}
 			trimLeftSpace(b, N)
-		case 113:{
+		case 113:
+			{
 				s := pTrimStringBytes(b, N)
 				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 				if !ok {
@@ -251,7 +253,8 @@ func pTrim__9(b *[]byte, N *int, v *struct {
 		case "asks":
 			pTrim__8(b, N, &v.Asks)
 			trimLeftSpace(b, N)
-		case "action":{
+		case "action":
+			{
 				s := pTrimStringBytes(b, N)
 				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 				if !ok {
@@ -282,7 +285,8 @@ func pTrim__10(b *[]byte, N *int, v *FtxOrderbookSafe) {
 		key := pTrimKeyColon(b, N)
 		nonEmpty = true
 		switch key {
-		case "channel":{
+		case "channel":
+			{
 				s := pTrimStringBytes(b, N)
 				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 				if !ok {
@@ -291,7 +295,8 @@ func pTrim__10(b *[]byte, N *int, v *FtxOrderbookSafe) {
 				v.Channel = string(s)
 			}
 			trimLeftSpace(b, N)
-		case "market":{
+		case "market":
+			{
 				s := pTrimStringBytes(b, N)
 				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 				if !ok {
@@ -300,7 +305,8 @@ func pTrim__10(b *[]byte, N *int, v *FtxOrderbookSafe) {
 				v.Market = string(s)
 			}
 			trimLeftSpace(b, N)
-		case "type":{
+		case "type":
+			{
 				s := pTrimStringBytes(b, N)
 				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 				if !ok {

@@ -1,66 +1,34 @@
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
-
-
-# Block objects represent a block of code
-class Block:
-    current: 'Block' = None  # Pointer to the current block
-
-    def __init__(self, indent=1):
-        self.parent: Optional['Block'] = Block.current  # Parent block
-        self.buffer: str = ''  # Code contents of this block
-        self.variables: dict[str, str] = {}  # Variables declared in this block
-        self.indent: int = indent  # Indentation of this block
-        if self.parent is not None:
-            self.indent += self.parent.indent
-
-    def __enter__(self):
-        # Update the pointer to the current block
-        Block.current = self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Add variable declarations to the start of the block
-        buffer = self.buffer
-        self.buffer = ''
-        for k, v in self.variables.items():
-            wl(f'var {k} {v}')
-        self.buffer += buffer
-        # Append the generated code to the end of the parent block
-        if self.parent is not None:
-            self.parent.buffer += self.buffer
-        # Update the pointer to the current block
-        Block.current = self.parent
 
 
 # Appends s to the end of current block
 def w(s: str):
-    Block.current.buffer += s
+    File.current.buffer += s
 
 
 # Flushes the current line and writes string s to the next line (with indent)
 def wl(s: str = ''):
-    Block.current.buffer += '\n' + File.current.tab * Block.current.indent + s
+    File.current.buffer += '\n' + File.current.tab * File.current.indent + s
 
 
 # Indents the generated code
 @contextmanager
 def Indent(indent: int = 1):
-    Block.current.indent += indent
+    File.current.indent += indent
     yield
-    Block.current.indent -= indent
+    File.current.indent -= indent
 
 
-# BraceBlock is the same as Block, but always increases indent by 1 and surrounds the generated code by braces
-class BraceBlock(Block):
-    def __enter__(self):
-        super().__enter__()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.buffer = '{' + self.buffer
-        with Indent(-1):
-            wl('}')
-        super().__exit__(exc_type, exc_val, exc_tb)
+@contextmanager
+def Braces(new_line=False):
+    if new_line:
+        wl('{')
+    else:
+        w('{')
+    with Indent():
+        yield
+    wl('}')
 
 
 # File objects are used to generate code and save the result in a file.
@@ -74,16 +42,15 @@ class File:
         self.filepath: Path = filepath
         self.tab: str = '\t'  # Used for indenting generated code
         self.tabsize: int = 4  # Tab size for wl(), wls(), WLS()
-        self.block = Block(0)
         self.imports: dict[str, str] = {}  # List of packages to import as a mapping package -> alias
+        self.buffer = ''
+        self.indent = 0
 
     def __enter__(self):
         assert File.current is None  # Nested file context managers not allowed
         File.current = self
-        self.block.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.block.__exit__(exc_type, exc_val, exc_tb)
         with open(self.filepath, 'w') as f:
             f.write('package ' + self.package_name + '\n')
             if self.imports:
@@ -91,7 +58,7 @@ class File:
                 for package, alias in sorted(self.imports.items()):
                     f.write(self.tabsize * ' ' + (alias + ' ' if alias else '') + '"' + package + '"\n')
                 f.write(')\n')
-            f.write(self.block.buffer)
+            f.write(self.buffer)
         File.current = None
 
 
@@ -151,11 +118,6 @@ def Import(package: str, alias: str = ''):
     File.current.imports[package] = alias
 
 
-# Adds a variable declaration that will be generated at the top of the current block of code
-def Var(name: str, typename: str):
-    Block.current.variables[name] = typename
-
-
 # Wraps the code inside a "switch" block
 @contextmanager
 def Switch(s: str):
@@ -169,7 +131,7 @@ def Switch(s: str):
 @contextmanager
 def Case(s: str):
     wl('case ' + s + ':')
-    with Block():
+    with Indent():
         yield
 
 
@@ -178,7 +140,7 @@ def Case(s: str):
 @contextmanager
 def Default():
     wl('default:')
-    with Block():
+    with Indent():
         yield
 
 
@@ -189,7 +151,7 @@ def For(s: str = ''):
         wl('for ' + s + ' ')
     else:
         wl('for ')
-    with BraceBlock():
+    with Braces():
         yield
 
 
@@ -197,7 +159,7 @@ def For(s: str = ''):
 @contextmanager
 def If(s: str):
     wl('if ' + s + ' ')
-    with BraceBlock():
+    with Braces():
         yield
 
 
@@ -206,7 +168,7 @@ def If(s: str):
 @contextmanager
 def ElseIf(s: str):
     w(' else if ' + s + ' ')
-    with BraceBlock():
+    with Braces():
         yield
 
 
@@ -215,7 +177,7 @@ def ElseIf(s: str):
 @contextmanager
 def Else():
     w(' else ')
-    with BraceBlock():
+    with Braces():
         yield
 
 
@@ -223,5 +185,5 @@ def Else():
 @contextmanager
 def Func(s: str):
     wl('func ' + s + ' ')
-    with BraceBlock():
+    with Braces():
         yield

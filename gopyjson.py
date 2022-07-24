@@ -177,14 +177,11 @@ class String(GoType):
     def trim(self, pvar: str):
         if self.typename:
             if self.unquote:
-                with BraceBlock():
-                    wls('''
-                    s := pTrimStringBytes(b, N)
-                    s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-                    if !ok {
-                        panic(ParseError{*b, *N, errUnquote})
-                    }
-                    ''')
+                with Braces(True):
+                    wl('s := pTrimStringBytes(b, N)')
+                    wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')
+                    with If('!ok'):
+                        wl('panic(ParseError{*b, *N, errUnquote})')
                     wl(f'{dereference(pvar)} = {self.typename}(s)')
             else:
                 if self.copy:
@@ -197,14 +194,11 @@ class String(GoType):
                         wl('panic(ParseError{*b, *N, errUTF8})')
         else:
             if self.unquote:
-                with BraceBlock():
-                    wls('''
-                    s := pTrimStringBytes(b, N)
-                    s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-                    if !ok {
-                        panic(ParseError{*b, *N, errUnquote})
-                    }
-                    ''')
+                with Braces(True):
+                    wl('s := pTrimStringBytes(b, N)')
+                    wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')
+                    with If('!ok'):
+                        wl('panic(ParseError{*b, *N, errUnquote})')
                     wl(f'{dereference(pvar)} = string(s)')
             else:
                 if self.copy:
@@ -266,17 +260,13 @@ class Array(GoType):
             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
             self.print_type()
             w(') ')
-            with BraceBlock():
-                wls('''
-                pTrimByte(b, N, '[')
-                trimLeftSpace(b, N)
-                ''')
+            with Braces():
+                wl("pTrimByte(b, N, '[')")
+                wl('trimLeftSpace(b, N)')
                 for i in range(self.size):
                     if i > 0:
-                        wls('''
-                        pTrimByte(b, N, ',')
-                        trimLeftSpace(b, N)
-                        ''')
+                        wl("pTrimByte(b, N, ',')")
+                        wl('trimLeftSpace(b, N)')
                     self.element_type.trim('&' + index('v', str(i)))
                     wl('trimLeftSpace(b, N)')
                 wl("pTrimByte(b, N, ']')")
@@ -320,17 +310,13 @@ class Tuple(GoType):
             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
             self.print_type()
             w(') ')
-            with BraceBlock():
-                wls('''
-                pTrimByte(b, N, '[')
-                trimLeftSpace(b, N)
-                ''')
+            with Braces():
+                wl("pTrimByte(b, N, '[')")
+                wl('trimLeftSpace(b, N)')
                 for i, (key, t) in enumerate(self.fields.items()):
                     if i > 0:
-                        wls('''
-                        pTrimByte(b, N, ',')
-                        trimLeftSpace(b, N)
-                        ''')
+                        wl("pTrimByte(b, N, ',')")
+                        wl('trimLeftSpace(b, N)')
                     t.trim(field_pointer('v', key))
                     wl('trimLeftSpace(b, N)')
                 wl("pTrimByte(b, N, ']')")
@@ -369,42 +355,32 @@ class Slice(GoType):
             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
             self.print_type()
             w(') ')
-            with BraceBlock():
+            with Braces():
                 element_var = f'var__{Gopyjson.RegisterParser(self.element_type)[1]}'
                 wl(f'var {element_var} ')
                 self.element_type.print_type()
-                wls('''
-                pTrimByte(b, N, '[')
-                trimLeftSpace(b, N)
-                if *N >= len(*b) {
-                    panic(ParseError{*b, *N, "unexpected end of array"})
-                }
-                if (*b)[*N] == ']' {
-                    *N++
-                    return
-                }
-                ''')
+                wl("pTrimByte(b, N, '[')")
+                wl('trimLeftSpace(b, N)')
+                with If('*N >= len(*b)'):
+                    wl('panic(ParseError{*b, *N, "unexpected end of array"})')
+                with If("(*b)[*N] == ']'"):
+                    wl('*N++')
+                    wl('return')
                 self.element_type.trim('&' + element_var)
-                with WLS('''
-                *v = append(*v, {0})
-                for {
-                    trimLeftSpace(b, N)
-                    if *N >= len(*b) {
-                        panic(ParseError{*b, *N, "unexpected end of array"})
-                    }
-                    if (*b)[*N] == ']' {
-                        *N++
-                        return
-                    }
-                    pTrimByte(b, N, ',')
-                    trimLeftSpace(b, N)
-                    {{}}
-                    *v = append(*v, {0})
-                }
-                ''', element_var):
+                wl(f'*v = append(*v, {element_var})')
+                with For():
+                    wl('trimLeftSpace(b, N)')
+                    with If('*N >= len(*b)'):
+                        wl('panic(ParseError{*b, *N, "unexpected end of array"})')
+                    with If("(*b)[*N] == ']'"):
+                        wl('*N++')
+                        wl('return')
+                    wl("pTrimByte(b, N, ',')")
+                    wl('trimLeftSpace(b, N)')
                     wl(f'var {element_var} ')
                     self.element_type.print_type()
                     self.element_type.trim('&' + element_var)
+                    wl(f'*v = append(*v, {element_var})')
 
 
 # Used for parsing JSON objects with known keys and known value types into a Go struct
@@ -449,7 +425,7 @@ class Struct(GoType):
             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
             self.print_type()
             w(') ')
-            with BraceBlock():
+            with Braces():
                 wls('''
                 var nonEmpty bool
                 pTrimByte(b, N, '{')
@@ -558,7 +534,7 @@ class Map(GoType):
             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
             self.print_type()
             w(') ')
-            with BraceBlock():
+            with Braces():
                 wls('''
                 var nonEmpty bool
                 pTrimByte(b, N, '{')
@@ -634,7 +610,7 @@ class Float64WithSrc(GoType):
 
     def long_typename(self):
         w('struct ')
-        with BraceBlock():
+        with Braces():
             wl('Value float64')
             wl('Src []byte')
 
@@ -644,7 +620,7 @@ class Float64WithSrc(GoType):
             wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
             self.print_type()
             w(') ')
-            with BraceBlock():
+            with Braces():
                 wls('''
                 n := *N
                 v.Value = pTrimFloat64(b, N)
