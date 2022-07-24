@@ -677,7 +677,7 @@ class Gopyjson:
         # Copy common code to <output_dir>/gopyjson/common.go
         shutil.copyfile('go/common.go', output_dir.joinpath('common.go'))
         self.file = File(output_dir.joinpath('gopyjson.go'), 'gopyjson')
-        self.file .__enter__()
+        self.file.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.file.__exit__(exc_type, exc_val, exc_tb)
