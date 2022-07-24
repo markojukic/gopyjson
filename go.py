@@ -1,53 +1,93 @@
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
+from typing import Optional
 
 
-@contextmanager
-def FilePrepend():
-    buffer = File.current.buffer
-    File.current.buffer = ''
-    yield
-    File.current.buffer += buffer
+# Block objects represent a block of code
+class Block:
+    current: 'Block' = None  # Pointer to the current block
+
+    def __init__(self, indent=1):
+        self.parent: Optional['Block'] = Block.current  # Parent block
+        self.buffer: str = ''  # Code contents of this block
+        self.variables: dict[str, str] = {}  # Variables declared in this block
+        self.indent: int = indent  # Indentation of this block
+        if self.parent is not None:
+            self.indent += self.parent.indent
+
+    def __enter__(self):
+        # Update the pointer to the current block
+        Block.current = self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Add variable declarations to the start of the block
+        with BlockPrepend():
+            for k, v in self.variables.items():
+                wl(f'var {k} {v}')
+        # Append the generated code to the end of the parent block
+        if self.parent is not None:
+            self.parent.buffer += self.buffer
+        # Update the pointer to the current block
+        Block.current = self.parent
 
 
+# Appends s to the end of current block
+def w(s: str):
+    Block.current.buffer += s
+
+
+# Flushes the current line and writes string s to the next line (with indent)
+def wl(s: str = ''):
+    Block.current.buffer += '\n' + File.current.tab * Block.current.indent + s
+
+
+# BraceBlock is the same as Block, but always increases indent by 1 and surrounds the generated code by braces
+class BraceBlock(Block):
+    def __enter__(self):
+        super().__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        with BlockPrepend():
+            w('{')
+        with Indent(-1):
+            wl('}')
+        super().__exit__(exc_type, exc_val, exc_tb)
+
+
+# File objects are used to generate code and save the result in a file.
 class File:
-    current: 'File' = None
+    current: 'File | GoFile' = None
 
     def __init__(self, filepath: str | Path):
         filepath = Path(filepath)
         assert File.current is None
-        self.filepath = filepath
+        self.filepath: Path = filepath
         self.tab: str = '\t'  # Used for indenting generated code
-        self.tabsize: int = 4  # Tab size for wls(), WLS()
-        self.flush: bool = True
-        self.buffer: str = ''
-        self.indent: int = 0
+        self.tabsize: int = 4  # Tab size for wl(), wls(), WLS()
+        self.block = Block(0)
 
     def __enter__(self):
+        assert File.current is None  # Nested files not allowed
         File.current = self
+        self.block.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.block.__exit__(exc_type, exc_val, exc_tb)
         with open(self.filepath, 'w') as f:
-            f.write(self.buffer)
+            f.write(self.block.buffer)
         File.current = None
 
 
-def w(s: str):
-    File.current.buffer += s
+# Code generated inside "with" block will be prepended to the current content of the file
+@contextmanager
+def FilePrepend():
+    buffer = File.current.block.buffer
+    File.current.block.buffer = ''
+    yield
+    File.current.block.buffer += buffer
 
 
-def wl(s: str = ''):
-    if s:
-        assert not s[0].isspace()
-        if File.current.flush:
-            w('\n' + File.current.tab * File.current.indent)
-        w(s)
-    else:
-        if File.current.flush:
-            w('\n')
-
-
+# Removes leading space (and tabs) from s, returns how much space
 def leading_space(s) -> tuple[int, str]:
     n = 0
     for i in range(len(s)):
@@ -62,8 +102,7 @@ def leading_space(s) -> tuple[int, str]:
 
 def _wls(s: str, *args: any, **kwargs: any) -> tuple[list[int], list[str]]:
     s = '\n'.join(line.rstrip() for line in s.rstrip().split('\n'))  # Remove trailing whitespace
-    while s and s[0] == '\n':  # Remove empty lines at the start
-        s = s[1:]
+    s = s.lstrip('\n')  # Remove empty lines at the start
     if not s:
         return [], []
     for i, arg in enumerate(args):  # Substitute arguments
@@ -83,11 +122,12 @@ def wls(s: str, *args: any, **kwargs: any):
             wl(line)
 
 
+# Indents the generated code
 @contextmanager
 def Indent(indent: int = 1):
-    File.current.indent += indent
+    Block.current.indent += indent
     yield
-    File.current.indent -= indent
+    Block.current.indent -= indent
 
 
 @contextmanager
@@ -98,23 +138,6 @@ def WLS(s: str, *args: any, **kwargs: any):
                 yield
             else:
                 wl(line)
-
-
-def cum_sum(seq: Iterable[int]):
-    s = 0
-    result = []
-    for i in seq:
-        s += i
-        result.append(s)
-    return result
-
-
-def subset(a: Iterable[str], b: Iterable[str]) -> bool:
-    return all(i in b for i in a)
-
-
-def minus(a: Iterable[str], b: Iterable[str]) -> list[str]:
-    return list(i for i in a if i not in b)
 
 
 class Package:
@@ -131,87 +154,52 @@ class Package:
         Package.current = None
 
 
-class Block:
-    current: 'Block' = None
-
-    def __init__(self, braces: bool = True, new_line: bool = True):
-        assert File.current is not None
-        self.variables: dict[str, str] = {}
-        self.outer_block = Block.current
-        self.n = len(File.current.buffer)
-        self.braces = braces
-        self.new_line = new_line
-
-    def __enter__(self):
-        Block.current = self
-        if self.braces:
-            File.current.indent += 1
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        with BlockPrepend():
-            if self.braces:
-                if self.new_line:
-                    with Indent(-1):
-                        wl('{')
-                else:
-                    w('{')
-            for k, v in self.variables.items():
-                wl(f'var {k} {v}')
-        Block.current = self.outer_block
-        if self.braces:
-            File.current.indent -= 1
-            wl('}')
-
-
 @contextmanager
 def BlockPrepend():
-    buffer = File.current.buffer
-    File.current.buffer = ''
+    buffer = Block.current.buffer
+    Block.current.buffer = ''
     yield
-    File.current.buffer = buffer[:Block.current.n] + File.current.buffer + buffer[Block.current.n:]
+    Block.current.buffer += buffer
 
 
+# GoFile objects are used with "with" statements to generate go files.
+# When used, they must be nested inside a "with Package(...)" block.
 class GoFile(File):
-    current: 'GoFile' = None
-
     def __init__(self, filepath: str | Path):
         filepath = Path(filepath)
         assert filepath.name.endswith('.go')
-        assert Package.current is not None
         super().__init__(filepath)
-        self.imports: dict[str, str] = {}
+        self.imports: dict[str, str] = {}  # List of packages to import as a mapping package -> alias
 
     def __enter__(self):
-        GoFile.current = self
+        assert Package.current is not None  # Every GoFile must belong to some Package
         super().__enter__()
-        self.block = Block(False)  # Block for global variables
-        self.block.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.block.__exit__(exc_type, exc_val, exc_tb)
         with FilePrepend():
-            w(f'package {Package.current.name}')
+            w('package ' + Package.current.name)
+            wl('')
             if self.imports:
-                with WLS('''
-                import (
-                    {{}}
-                )
-                '''):
-                    for package in sorted(self.imports):
-                        alias = self.imports[package]
+                wl('import (')
+                with Indent():
+                    for package, alias in sorted(self.imports.items()):
                         wl((alias + ' ' if alias else '') + '"' + package + '"')
+                wl(')')
         super().__exit__(exc_type, exc_val, exc_tb)
-        GoFile.current = None
 
 
+# Adds an import statement that will be generated at the top of the file
 def Import(package: str, alias: str = ''):
+    assert isinstance(File.current, GoFile)
     GoFile.current.imports[package] = alias
 
 
+# Adds a variable declaration that will be generated at the top of the current block of code
 def Var(name: str, typename: str):
     Block.current.variables[name] = typename
 
 
+# Wraps the code inside a "switch" block
 @contextmanager
 def Switch(s: str):
     wl('switch ' + s + ' {')
@@ -219,55 +207,64 @@ def Switch(s: str):
     wl('}')
 
 
+# Wraps the code inside a "case" block (part of switch statement)
+# Doesn't check if the "case" is inside a "switch" block.
 @contextmanager
 def Case(s: str):
     wl('case ' + s + ':')
-    with Indent():
-        with Block(braces=False):
-            yield
+    with Block():
+        yield
 
 
+# Wraps the code inside a "default" block (part of switch statement)
+# Doesn't check if the "default" is inside a "switch" block.
 @contextmanager
 def Default():
     wl('default:')
-    with Indent():
-        with Block(braces=False):
-            yield
+    with Block():
+        yield
 
 
+# Wraps the code inside a "for" loop
 @contextmanager
 def For(s: str = ''):
     if s:
         wl('for ' + s + ' ')
     else:
         wl('for ')
-    with Block(new_line=False):
+    with BraceBlock():
         yield
 
 
+# Wraps the code inside an "if" block
 @contextmanager
 def If(s: str):
     wl('if ' + s + ' ')
-    with Block(new_line=False):
+    with BraceBlock():
         yield
 
 
+# Wraps the code inside an "else if" block.
+# Doesn't check if there is a matching "if" block.
 @contextmanager
 def ElseIf(s: str):
     w(' else if ' + s + ' ')
-    with Block(new_line=False):
+    with BraceBlock():
         yield
 
 
+# Wraps the code inside an "else" block.
+# Doesn't check if there is a matching "if" block.
 @contextmanager
 def Else():
     w(' else ')
-    with Block(new_line=False):
+    with BraceBlock():
         yield
 
 
+# Wraps the code inside a function with a given name and signature.
 @contextmanager
 def Func(s: str):
     wl('func ' + s + ' ')
-    with Block(new_line=False):
+    with BraceBlock():
         yield
