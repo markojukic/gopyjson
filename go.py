@@ -103,15 +103,6 @@ class File:
         File.current = None
 
 
-# Code generated inside "with" block will be prepended to the current content of the file
-@contextmanager
-def FilePrepend():
-    buffer = File.current.block.buffer
-    File.current.block.buffer = ''
-    yield
-    File.current.block.buffer += buffer
-
-
 # Removes leading space (and tabs) from s, returns how much space
 def leading_space(s) -> tuple[int, str]:
     n = 0
