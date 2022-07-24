@@ -21,9 +21,11 @@ class Block:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Add variable declarations to the start of the block
-        with BlockPrepend():
-            for k, v in self.variables.items():
-                wl(f'var {k} {v}')
+        buffer = self.buffer
+        self.buffer = ''
+        for k, v in self.variables.items():
+            wl(f'var {k} {v}')
+        self.buffer += buffer
         # Append the generated code to the end of the parent block
         if self.parent is not None:
             self.parent.buffer += self.buffer
@@ -41,15 +43,6 @@ def wl(s: str = ''):
     Block.current.buffer += '\n' + File.current.tab * Block.current.indent + s
 
 
-# Code generated inside "with" block is prepended to the beginning of the current block
-@contextmanager
-def BlockPrepend():
-    buffer = Block.current.buffer
-    Block.current.buffer = ''
-    yield
-    Block.current.buffer += buffer
-
-
 # Indents the generated code
 @contextmanager
 def Indent(indent: int = 1):
@@ -64,8 +57,7 @@ class BraceBlock(Block):
         super().__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        with BlockPrepend():
-            w('{')
+        self.buffer = '{' + self.buffer
         with Indent(-1):
             wl('}')
         super().__exit__(exc_type, exc_val, exc_tb)
