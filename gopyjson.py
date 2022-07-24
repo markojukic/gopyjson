@@ -676,14 +676,11 @@ class Gopyjson:
         output_dir.mkdir(exist_ok=True)
         # Copy common code to <output_dir>/gopyjson/common.go
         shutil.copyfile('go/common.go', output_dir.joinpath('common.go'))
-        self.package = Package('gopyjson')
-        self.package.__enter__()
-        self.go_file = GoFile(output_dir.joinpath('gopyjson.go'))
-        self.go_file.__enter__()
+        self.file = File(output_dir.joinpath('gopyjson.go'), 'gopyjson')
+        self.file .__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.go_file.__exit__(exc_type, exc_val, exc_tb)
-        self.package.__exit__(exc_type, exc_val, exc_tb)
+        self.file.__exit__(exc_type, exc_val, exc_tb)
         Gopyjson.current = None
 
     # Registers the given type if an equal type was not registered already.
