@@ -193,40 +193,26 @@ class String(GoType):
     def parser_id(self):
         return self.copy, self.validate_utf8, self.unquote
 
-    def trim(self, pvar: str):
-        if self.typename:
-            if self.unquote:
-                with Braces(True):
+    def generate_parser(self):
+        new, t = Package.RegisterType(self)
+        assert not new
+        new, f = Package.RegisterParser(self)
+        if new:
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+                if self.unquote:
                     wl('s := pTrimStringBytes(b, N)')
-                    wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')
+                    wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')  # Copy made here
                     with If('!ok'):
                         wl('panic(ParseError{*b, *N, errUnquote})')
-                    wl(f'{dereference(pvar)} = {self.typename}(s)')
-            else:
-                if self.copy:
-                    wl(f'{dereference(pvar)} = {self.typename}(pTrimStringBytes(b, N))')
+                    wl(f'*v = type{t}(s)')  # Compiler avoids a copy here, no need to use bytesToString()
                 else:
-                    wl(f'{dereference(pvar)} = {self.typename}(bytesToString(pTrimStringBytes(b, N)))')
-                if self.validate_utf8 and not self.unquote:
+                    if self.copy:
+                        wl(f'*v = type{t}(pTrimStringBytes(b, N))')
+                    else:
+                        wl(f'*v = type{t}(bytesToString(pTrimStringBytes(b, N)))')
+                if self.validate_utf8:
                     Import('unicode/utf8')
-                    with If(f'!utf8.ValidString(string({dereference(pvar)}))'):
-                        wl('panic(ParseError{*b, *N, errUTF8})')
-        else:
-            if self.unquote:
-                with Braces(True):
-                    wl('s := pTrimStringBytes(b, N)')
-                    wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')
-                    with If('!ok'):
-                        wl('panic(ParseError{*b, *N, errUnquote})')
-                    wl(f'{dereference(pvar)} = string(s)')
-            else:
-                if self.copy:
-                    wl(f'{dereference(pvar)} = string(pTrimStringBytes(b, N))')
-                else:
-                    wl(f'{dereference(pvar)} = bytesToString(pTrimStringBytes(b, N))')
-                if self.validate_utf8 and not self.unquote:
-                    Import('unicode/utf8')
-                    with If(f'!utf8.ValidString({dereference(pvar)})'):
+                    with If(f'!utf8.ValidString(string(*v))'):
                         wl('panic(ParseError{*b, *N, errUTF8})')
 
     def zero(self, pvar: str):

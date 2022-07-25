@@ -1,5 +1,9 @@
 package gopyjson
 
+import (
+    "unicode/utf8"
+)
+
 type type0 int64
 type type1 string
 type type2 bool
@@ -14,6 +18,17 @@ type BinanceAggTradeSafe struct {
 	M bool
 }
 type type3 BinanceAggTradeSafe
+func pTrim__1(b *[]byte, N *int, v *type1) {
+	s := pTrimStringBytes(b, N)
+	s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
+	if !ok {
+		panic(ParseError{*b, *N, errUnquote})
+	}
+	*v = type1(s)
+	if !utf8.ValidString(string(*v)) {
+		panic(ParseError{*b, *N, errUTF8})
+	}
+}
 func pTrim__3(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
@@ -38,24 +53,10 @@ func pTrim__3(b *[]byte, N *int, v *type3) {
 			v.A = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case 112:
-			{
-				s := pTrimStringBytes(b, N)
-				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-				if !ok {
-					panic(ParseError{*b, *N, errUnquote})
-				}
-				v.p = string(s)
-			}
+			pTrim__1(b, N, (*type1)(&v.p))
 			trimLeftSpace(b, N)
 		case 113:
-			{
-				s := pTrimStringBytes(b, N)
-				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-				if !ok {
-					panic(ParseError{*b, *N, errUnquote})
-				}
-				v.q = string(s)
-			}
+			pTrim__1(b, N, (*type1)(&v.q))
 			trimLeftSpace(b, N)
 		case 102:
 			v.f = pTrimInt64(b, N)
@@ -104,6 +105,9 @@ type BinanceAggTradeUnsafe struct {
 	m bool
 	M bool
 }
+func pTrim__4(b *[]byte, N *int, v *type1) {
+	*v = type1(bytesToString(pTrimStringBytes(b, N)))
+}
 func pTrim__5(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
@@ -128,10 +132,10 @@ func pTrim__5(b *[]byte, N *int, v *type3) {
 			v.A = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case 112:
-			v.p = bytesToString(pTrimStringBytes(b, N))
+			pTrim__4(b, N, (*type1)(&v.p))
 			trimLeftSpace(b, N)
 		case 113:
-			v.q = bytesToString(pTrimStringBytes(b, N))
+			pTrim__4(b, N, (*type1)(&v.q))
 			trimLeftSpace(b, N)
 		case 102:
 			v.f = pTrimInt64(b, N)
@@ -263,14 +267,7 @@ func pTrim__9(b *[]byte, N *int, v *type7) {
 			pTrim__8(b, N, (*type6)(&v.Asks))
 			trimLeftSpace(b, N)
 		case "action":
-			{
-				s := pTrimStringBytes(b, N)
-				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-				if !ok {
-					panic(ParseError{*b, *N, errUnquote})
-				}
-				v.Action = string(s)
-			}
+			pTrim__1(b, N, (*type1)(&v.Action))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
@@ -295,34 +292,13 @@ func pTrim__10(b *[]byte, N *int, v *type8) {
 		nonEmpty = true
 		switch key {
 		case "channel":
-			{
-				s := pTrimStringBytes(b, N)
-				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-				if !ok {
-					panic(ParseError{*b, *N, errUnquote})
-				}
-				v.Channel = string(s)
-			}
+			pTrim__1(b, N, (*type1)(&v.Channel))
 			trimLeftSpace(b, N)
 		case "market":
-			{
-				s := pTrimStringBytes(b, N)
-				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-				if !ok {
-					panic(ParseError{*b, *N, errUnquote})
-				}
-				v.Market = string(s)
-			}
+			pTrim__1(b, N, (*type1)(&v.Market))
 			trimLeftSpace(b, N)
 		case "type":
-			{
-				s := pTrimStringBytes(b, N)
-				s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
-				if !ok {
-					panic(ParseError{*b, *N, errUnquote})
-				}
-				v.Type = string(s)
-			}
+			pTrim__1(b, N, (*type1)(&v.Type))
 			trimLeftSpace(b, N)
 		case "data":
 			pTrim__9(b, N, (*type7)(&v.Data))
@@ -391,7 +367,7 @@ func pTrim__11(b *[]byte, N *int, v *type7) {
 			pTrim__8(b, N, (*type6)(&v.Asks))
 			trimLeftSpace(b, N)
 		case "action":
-			v.Action = bytesToString(pTrimStringBytes(b, N))
+			pTrim__4(b, N, (*type1)(&v.Action))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
@@ -416,13 +392,13 @@ func pTrim__12(b *[]byte, N *int, v *type8) {
 		nonEmpty = true
 		switch key {
 		case "channel":
-			v.Channel = bytesToString(pTrimStringBytes(b, N))
+			pTrim__4(b, N, (*type1)(&v.Channel))
 			trimLeftSpace(b, N)
 		case "market":
-			v.Market = bytesToString(pTrimStringBytes(b, N))
+			pTrim__4(b, N, (*type1)(&v.Market))
 			trimLeftSpace(b, N)
 		case "type":
-			v.Type = bytesToString(pTrimStringBytes(b, N))
+			pTrim__4(b, N, (*type1)(&v.Type))
 			trimLeftSpace(b, N)
 		case "data":
 			pTrim__11(b, N, (*type7)(&v.Data))
