@@ -24,9 +24,17 @@ def index(container_pointer: str, i: str):
         return f'(*{container_pointer})[{i}]'
 
 
-class GoType:
+class Parser:
     def __init__(self, typename: str = ''):
         self.typename = typename  # The Go typename for this type, can be empty
+
+    # Sets the value of pvar to zero. Used before parsing.
+    def zero(self, pvar: str):
+        raise NotImplementedError()
+
+    # Generates the type definition (the part that comes after "type <typename> ")
+    def long_typename(self):
+        raise NotImplementedError()
 
     # Returns a hashable object such that if x.type_id() == y.type_id(),
     # then pointers to underlying types of x and y can be converted one to another.
@@ -40,7 +48,7 @@ class GoType:
     def parser_id(self):
         return None
 
-    # Generates code that parses this type from b starting at index N, saves result to object located at pvar
+    # Generates code that parses from b starting at index N and saves result to Go object located at pvar
     def trim(self, pvar: str):
         # Checks if the type was defined first
         new, t = Package.RegisterType(self)
@@ -48,7 +56,7 @@ class GoType:
         # Check if the parser was defined first
         new, f = Package.RegisterParser(self)
         assert not new
-        wl(f'pTrim__{f}(b, N, (*type{t})({pvar}))')
+        wl(f'pTrim{f}(b, N, (*type{t})({pvar}))')
 
     # Generates code that parses this type from b starting at index N using a given function, saves result to pvar.
     # This is used by simple types like integers or floats in combination with predefined parsers from common.go.
@@ -58,22 +66,16 @@ class GoType:
         else:
             wl(f'{dereference(pvar)} = {func}(b, N)')
 
-    # Sets the value of pvar to zero.
-    def zero(self, pvar: str):
-        raise NotImplementedError()
-
-    # Generates the type definition
-    def long_typename(self):
-        raise NotImplementedError()
-
-    # Used for variable declarations
+    # Generates either the typename or type definition, used for variable declarations
     def print_type(self):
         if self.typename:
             w(self.typename)
         else:
             self.long_typename()
 
-    # Generates the type declaration if the same type has not already been generated
+    # Generates the type declaration if not already generated
+    # Also generates a type alias that is common to all parsers with same type_id.
+    # This type alias is used in the generated parser functions, which can then be reused.
     def generate_type(self):
         new, t = Package.RegisterType(self)
         if self.typename and self.typename not in Package.current.typenames:
@@ -89,7 +91,7 @@ class GoType:
 
     # Generates the parser if an equivalent parser has not already been generated
     def generate_parser(self):
-        Package.RegisterParser(self)
+        pass
 
     # Generates the Unmarshal method for this type
     def generate(self, func_name: str = 'Unmarshal'):
@@ -111,12 +113,12 @@ class GoType:
             wl('return nil')
 
     # Syntactic sugar for (self, json_field), used with Struct() fields that don't have the same name as json field
-    def __floordiv__(self, json_field: str) -> tuple['GoType', str]:
+    def __floordiv__(self, json_field: str) -> tuple['Parser', str]:
         return self, json_field
 
 
 # Used for parsing a boolean
-class Bool(GoType):
+class Bool(Parser):
     def trim(self, pvar: str):
         self.trim_using(pvar, 'pTrimBool')
 
@@ -128,7 +130,7 @@ class Bool(GoType):
 
 
 # Used for parsing an int64
-class Int64(GoType):
+class Int64(Parser):
     def trim(self, pvar: str):
         self.trim_using(pvar, 'pTrimInt64')
 
@@ -140,7 +142,7 @@ class Int64(GoType):
 
 
 # Used for parsing an uint64
-class UInt64(GoType):
+class UInt64(Parser):
     def trim(self, pvar: str):
         self.trim_using(pvar, 'pTrimUint64')
 
@@ -152,7 +154,7 @@ class UInt64(GoType):
 
 
 # Used for parsing a float32
-class Float32(GoType):
+class Float32(Parser):
     def trim(self, pvar: str):
         self.trim_using(pvar, 'pTrimFloat32')
 
@@ -164,7 +166,7 @@ class Float32(GoType):
 
 
 # Used for parsing a float64
-class Float64(GoType):
+class Float64(Parser):
     def trim(self, pvar: str):
         self.trim_using(pvar, 'pTrimFloat64')
 
@@ -176,7 +178,7 @@ class Float64(GoType):
 
 
 # Used for parsing a string
-class String(GoType):
+class String(Parser):
     # Arguments
     # copy: whether the result should be a copy or just a reference to a part of the buffer we are parsing from
     # validate_utf8: turn on/off UTF8 validation for this string
@@ -198,7 +200,7 @@ class String(GoType):
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
                 if self.unquote:
                     wl('s := pTrimStringBytes(b, N)')
                     wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')  # Copy made here
@@ -222,23 +224,23 @@ class String(GoType):
         w('string')
 
 
-# Turns off all safety features. Parsing is faster as a result.
+# Turns off all safety features and avoids copying. Parsing is faster as a result.
 class UnsafeString(String):
     def __init__(self, **kwargs):
         super().__init__(copy=False, validate_utf8=False, unquote=False, **kwargs)
 
 
 # Used for parsing arrays of known length and element type into a Go array.
-class Array(GoType):
-    def __init__(self, size: int, element_type: GoType, **kwargs):
+class Array(Parser):
+    def __init__(self, size: int, element_parser: Parser, **kwargs):
         assert size > 0
         super().__init__(**kwargs)
         self.size = size
-        self.element_type = element_type
+        self.element_parser = element_parser
 
     def long_typename(self):
         w(f'[{self.size}]')
-        self.element_type.print_type()
+        self.element_parser.print_type()
 
     def zero(self, pvar: str):
         wl(f'{dereference(pvar)} = ')
@@ -246,38 +248,38 @@ class Array(GoType):
         w('{}')
 
     def type_id(self):
-        return Array, self.size, self.element_type.type_id(), self.element_type.typename
+        return Array, self.size, self.element_parser.type_id(), self.element_parser.typename
 
     def parser_id(self):
-        return self.size, self.element_type.parser_id()
+        return self.size, self.element_parser.parser_id()
 
     def generate_type(self):
-        self.element_type.generate_type()
+        self.element_parser.generate_type()
         super().generate_type()
 
     def generate_parser(self):
-        self.element_type.generate_parser()
+        self.element_parser.generate_parser()
         new, t = Package.RegisterType(self)
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
                 wl("pTrimByte(b, N, '[')")
                 wl('trimLeftSpace(b, N)')
                 for i in range(self.size):
                     if i > 0:
                         wl("pTrimByte(b, N, ',')")
                         wl('trimLeftSpace(b, N)')
-                    self.element_type.trim('&' + index('v', str(i)))
+                    self.element_parser.trim('&' + index('v', str(i)))
                     wl('trimLeftSpace(b, N)')
                 wl("pTrimByte(b, N, ']')")
 
 
 # Used for parsing arrays of known length and variable element types into a Go struct
-class Tuple(GoType):
-    def __init__(self, fields: dict[str, GoType], typename: str = ''):
+class Tuple(Parser):
+    def __init__(self, fields: dict[str, Parser], typename: str = ''):
         super().__init__(typename=typename)
-        self.fields: dict[str, GoType] = fields
+        self.fields: dict[str, Parser] = fields
 
     def type_id(self):
         return Tuple, tuple((k, v.type_id()) for k, v in self.fields.items())
@@ -308,7 +310,7 @@ class Tuple(GoType):
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
                 wl("pTrimByte(b, N, '[')")
                 wl('trimLeftSpace(b, N)')
                 for i, (key, t) in enumerate(self.fields.items()):
@@ -325,16 +327,16 @@ class Tuple(GoType):
 
 
 # Used for parsing arrays of variable length and known element types into a Go slice
-class Slice(GoType):
-    def __init__(self, element_type: GoType, **kwargs):
+class Slice(Parser):
+    def __init__(self, element_parser: Parser, **kwargs):
         super().__init__(**kwargs)
-        self.element_type = element_type
+        self.element_parser = element_parser
 
     def type_id(self):
-        return Slice, self.element_type.type_id(), self.element_type.typename
+        return Slice, self.element_parser.type_id(), self.element_parser.typename
 
     def parser_id(self):
-        return self.element_type.parser_id()
+        return self.element_parser.parser_id()
 
     def zero(self, pvar: str):
         # Here we just slice the slice, to avoid garbage collection.
@@ -343,22 +345,21 @@ class Slice(GoType):
 
     def long_typename(self):
         w(f'[]')
-        self.element_type.print_type()
+        self.element_parser.print_type()
 
     def generate_type(self):
-        self.element_type.generate_type()
+        self.element_parser.generate_type()
         super().generate_type()
 
     def generate_parser(self):
-        self.element_type.generate_parser()
+        self.element_parser.generate_parser()
         new, t = Package.RegisterType(self)
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
-                element_var = f'var__{Package.RegisterParser(self.element_type)[1]}'
-                wl(f'var {element_var} ')
-                self.element_type.print_type()
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
+                wl(f'var element ')
+                self.element_parser.print_type()
                 wl("pTrimByte(b, N, '[')")
                 wl('trimLeftSpace(b, N)')
                 with If('*N >= len(*b)'):
@@ -366,8 +367,8 @@ class Slice(GoType):
                 with If("(*b)[*N] == ']'"):
                     wl('*N++')
                     wl('return')
-                self.element_type.trim('&' + element_var)
-                wl(f'*v = append(*v, {element_var})')
+                self.element_parser.trim('&element')
+                wl(f'*v = append(*v, element)')
                 with For():
                     wl('trimLeftSpace(b, N)')
                     with If('*N >= len(*b)'):
@@ -377,18 +378,16 @@ class Slice(GoType):
                         wl('return')
                     wl("pTrimByte(b, N, ',')")
                     wl('trimLeftSpace(b, N)')
-                    wl(f'var {element_var} ')
-                    self.element_type.print_type()
-                    self.element_type.trim('&' + element_var)
-                    wl(f'*v = append(*v, {element_var})')
+                    self.element_parser.trim('&element')
+                    wl(f'*v = append(*v, element)')
 
 
 # Used for parsing JSON objects with known keys and known value types into a Go struct
-class Struct(GoType):
-    def __init__(self, fields: dict[str, GoType | tuple[GoType, str]], typename: str = '', other_keys: str = 'skip'):
+class Struct(Parser):
+    def __init__(self, fields: dict[str, Parser | tuple[Parser, str]], typename: str = '', other_keys: str = 'skip'):
         assert other_keys == 'skip' or other_keys == 'fail'
         super().__init__(typename=typename)
-        self.fields: dict[str, GoType] = {k: v[0] if type(v) == tuple else v for k, v in fields.items()}
+        self.fields: dict[str, Parser] = {k: v[0] if type(v) == tuple else v for k, v in fields.items()}
         self.names: dict[str, str] = {k: v[1] if type(v) == tuple else k for k, v in fields.items()}
         self.other_keys = other_keys
 
@@ -422,7 +421,7 @@ class Struct(GoType):
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
                 var nonEmpty bool
                 pTrimByte(b, N, '{')
@@ -448,6 +447,13 @@ class Struct(GoType):
                     else:
                         self.key_switch('v')
 
+    def skip_or_fail(self):
+        if self.other_keys == 'skip':
+            wl('pTrimValue(b, N)')
+        else:
+            wl(r'panic(ParseError{*b, *N, errUnexpectedKey + key + "\""})')
+
+    # Detects the field corresponding to an object key by using a string switch.
     def key_switch(self, pvar: str):
         with Switch('key'):
             for k, t in self.fields.items():
@@ -457,7 +463,8 @@ class Struct(GoType):
             with Default():
                 self.skip_or_fail()
 
-    # Appears slower than full key switch
+    # Detects the field corresponding to an object key by a switch on first characters,
+    # if all fields have different first characters. Appears slower than string switch.
     def key_switch_by_first_byte(self, pvar: str):
         assert all(len(k.encode('utf-8')) >= 1 for k in self.names.values())
         assert len(set(k.encode('utf-8')[0] for k in self.names.values())) == len(self.names)
@@ -473,12 +480,8 @@ class Struct(GoType):
             with Default():
                 self.skip_or_fail()
 
-    def skip_or_fail(self):
-        if self.other_keys == 'skip':
-            wl('pTrimValue(b, N)')
-        else:
-            wl(r'panic(ParseError{*b, *N, errUnexpectedKey + key + "\""})')
-
+    # Detects the field corresponding to an object key by a switch on first characters,
+    # if all fields have length 1. Faster than full string switch.
     def key_switch_len1(self, pvar: str):
         assert all(len(k.encode('utf-8')) == 1 for k in self.names.values())
         assert len(set(k.encode('utf-8')[0] for k in self.names.values())) == len(self.names)
@@ -498,38 +501,38 @@ class Struct(GoType):
 
 
 # Used for parsing JSON objects with known value types
-class Map(GoType):
-    def __init__(self, key_type: String, value_type: GoType, typename: str = ''):
+class Map(Parser):
+    def __init__(self, key_parser: String, value_parser: Parser, typename: str = ''):
         super().__init__(typename=typename)
-        self.key_type: String = key_type
-        self.value_type = value_type
+        self.key_parser: String = key_parser
+        self.value_parser = value_parser
 
     def type_id(self):
-        return Map, self.key_type.type_id(), self.key_type.typename, self.value_type.type_id(), self.value_type.typename
+        return Map, self.key_parser.type_id(), self.key_parser.typename, self.value_parser.type_id(), self.value_parser.typename
 
     def parser_id(self):
-        return self.key_type.parser_id(), self.value_type.parser_id()
+        return self.key_parser.parser_id(), self.value_parser.parser_id()
 
     def long_typename(self):
         w('map[')
-        self.key_type.print_type()
+        self.key_parser.print_type()
         w(']')
-        self.value_type.print_type()
+        self.value_parser.print_type()
 
     def generate_type(self):
-        self.key_type.generate_type()
-        self.value_type.generate_type()
+        self.key_parser.generate_type()
+        self.value_parser.generate_type()
         super().generate_type()
 
     def generate_parser(self):
-        self.key_type.generate_parser()
-        self.value_type.generate_parser()
+        self.key_parser.generate_parser()
+        self.value_parser.generate_parser()
 
         new, t = Package.RegisterType(self)
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
                 var nonEmpty bool
                 pTrimByte(b, N, '{')
@@ -550,8 +553,8 @@ class Map(GoType):
                     nonEmpty = true
                     ''')
                     wl('var value ')
-                    self.value_type.print_type()
-                    self.value_type.trim('&value')
+                    self.value_parser.print_type()
+                    self.value_parser.trim('&value')
                     wl('trimLeftSpace(b, N)')
                     wl('(*v)[key] = value')
 
@@ -562,7 +565,7 @@ class Map(GoType):
 
 
 # Used for parsing floats delimited by quotes
-class QuotedFloat64(GoType):
+class QuotedFloat64(Parser):
     def trim(self, pvar: str):
         self.trim_using(pvar, 'pTrimQuotedFloat64')
 
@@ -595,7 +598,7 @@ class QuotedFloat64(GoType):
 #     Src []byte
 # }
 # The float is saved to the Value field, and the original source JSON is saved to the Src field
-class Float64WithSrc(GoType):
+class Float64WithSrc(Parser):
     def __init__(self, typename: str = ''):
         super().__init__(typename=typename)
 
@@ -614,7 +617,7 @@ class Float64WithSrc(GoType):
         assert not new
         new, f = Package.RegisterParser(self)
         if new:
-            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
+            with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
                 n := *N
                 v.Value = pTrimFloat64(b, N)
@@ -657,7 +660,7 @@ class Package:
     # Registers the given type if an equal type was not registered already.
     # Returns whether the type was registered.
     @staticmethod
-    def RegisterType(parser: GoType) -> tuple[bool, int]:
+    def RegisterType(parser: Parser) -> tuple[bool, int]:
         pid = parser.type_id()
         if pid in Package.current.types:
             return False, Package.current.types[pid]
@@ -667,7 +670,7 @@ class Package:
     # Registers the parser for a given type if an equivalent parser was not registered already.
     # Returns whether if was registered and its unique index in the list of registered types
     @staticmethod
-    def RegisterParser(parser: GoType) -> tuple[bool, int]:
+    def RegisterParser(parser: Parser) -> tuple[bool, int]:
         pid = (parser.type_id(), parser.parser_id())
         if pid in Package.current.parsers:
             return False, Package.current.parsers[pid]

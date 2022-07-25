@@ -18,7 +18,7 @@ type BinanceAggTradeSafe struct {
 	M bool
 }
 type type3 BinanceAggTradeSafe
-func pTrim__1(b *[]byte, N *int, v *type1) {
+func pTrim0(b *[]byte, N *int, v *type1) {
 	s := pTrimStringBytes(b, N)
 	s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 	if !ok {
@@ -29,7 +29,7 @@ func pTrim__1(b *[]byte, N *int, v *type1) {
 		panic(ParseError{*b, *N, errUTF8})
 	}
 }
-func pTrim__3(b *[]byte, N *int, v *type3) {
+func pTrim1(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -53,10 +53,10 @@ func pTrim__3(b *[]byte, N *int, v *type3) {
 			v.A = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case 112:
-			pTrim__1(b, N, (*type1)(&v.p))
+			pTrim0(b, N, (*type1)(&v.p))
 			trimLeftSpace(b, N)
 		case 113:
-			pTrim__1(b, N, (*type1)(&v.q))
+			pTrim0(b, N, (*type1)(&v.q))
 			trimLeftSpace(b, N)
 		case 102:
 			v.f = pTrimInt64(b, N)
@@ -92,7 +92,7 @@ func (v *BinanceAggTradeSafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__3(b, N, (*type3)(v))
+	pTrim1(b, N, (*type3)(v))
 	return nil
 }
 type BinanceAggTradeUnsafe struct {
@@ -105,10 +105,10 @@ type BinanceAggTradeUnsafe struct {
 	m bool
 	M bool
 }
-func pTrim__4(b *[]byte, N *int, v *type1) {
+func pTrim2(b *[]byte, N *int, v *type1) {
 	*v = type1(bytesToString(pTrimStringBytes(b, N)))
 }
-func pTrim__5(b *[]byte, N *int, v *type3) {
+func pTrim3(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -132,10 +132,10 @@ func pTrim__5(b *[]byte, N *int, v *type3) {
 			v.A = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case 112:
-			pTrim__4(b, N, (*type1)(&v.p))
+			pTrim2(b, N, (*type1)(&v.p))
 			trimLeftSpace(b, N)
 		case 113:
-			pTrim__4(b, N, (*type1)(&v.q))
+			pTrim2(b, N, (*type1)(&v.q))
 			trimLeftSpace(b, N)
 		case 102:
 			v.f = pTrimInt64(b, N)
@@ -171,7 +171,7 @@ func (v *BinanceAggTradeUnsafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__5(b, N, (*type3)(v))
+	pTrim3(b, N, (*type3)(v))
 	return nil
 }
 type type4 float64
@@ -197,7 +197,7 @@ type FtxOrderbookSafe struct {
 	}
 }
 type type8 FtxOrderbookSafe
-func pTrim__7(b *[]byte, N *int, v *type5) {
+func pTrim4(b *[]byte, N *int, v *type5) {
 	pTrimByte(b, N, '[')
 	trimLeftSpace(b, N)
 	(*v)[0] = pTrimFloat64(b, N)
@@ -208,8 +208,8 @@ func pTrim__7(b *[]byte, N *int, v *type5) {
 	trimLeftSpace(b, N)
 	pTrimByte(b, N, ']')
 }
-func pTrim__8(b *[]byte, N *int, v *type6) {
-	var var__7 [2]float64
+func pTrim5(b *[]byte, N *int, v *type6) {
+	var element [2]float64
 	pTrimByte(b, N, '[')
 	trimLeftSpace(b, N)
 	if *N >= len(*b) {
@@ -219,8 +219,8 @@ func pTrim__8(b *[]byte, N *int, v *type6) {
 		*N++
 		return
 	}
-	pTrim__7(b, N, (*type5)(&var__7))
-	*v = append(*v, var__7)
+	pTrim4(b, N, (*type5)(&element))
+	*v = append(*v, element)
 	for {
 		trimLeftSpace(b, N)
 		if *N >= len(*b) {
@@ -232,12 +232,11 @@ func pTrim__8(b *[]byte, N *int, v *type6) {
 		}
 		pTrimByte(b, N, ',')
 		trimLeftSpace(b, N)
-		var var__7 [2]float64
-		pTrim__7(b, N, (*type5)(&var__7))
-		*v = append(*v, var__7)
+		pTrim4(b, N, (*type5)(&element))
+		*v = append(*v, element)
 	}
 }
-func pTrim__9(b *[]byte, N *int, v *type7) {
+func pTrim6(b *[]byte, N *int, v *type7) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -261,20 +260,20 @@ func pTrim__9(b *[]byte, N *int, v *type7) {
 			v.Checksum = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case "bids":
-			pTrim__8(b, N, (*type6)(&v.Bids))
+			pTrim5(b, N, (*type6)(&v.Bids))
 			trimLeftSpace(b, N)
 		case "asks":
-			pTrim__8(b, N, (*type6)(&v.Asks))
+			pTrim5(b, N, (*type6)(&v.Asks))
 			trimLeftSpace(b, N)
 		case "action":
-			pTrim__1(b, N, (*type1)(&v.Action))
+			pTrim0(b, N, (*type1)(&v.Action))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
 		}
 	}
 }
-func pTrim__10(b *[]byte, N *int, v *type8) {
+func pTrim7(b *[]byte, N *int, v *type8) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -292,16 +291,16 @@ func pTrim__10(b *[]byte, N *int, v *type8) {
 		nonEmpty = true
 		switch key {
 		case "channel":
-			pTrim__1(b, N, (*type1)(&v.Channel))
+			pTrim0(b, N, (*type1)(&v.Channel))
 			trimLeftSpace(b, N)
 		case "market":
-			pTrim__1(b, N, (*type1)(&v.Market))
+			pTrim0(b, N, (*type1)(&v.Market))
 			trimLeftSpace(b, N)
 		case "type":
-			pTrim__1(b, N, (*type1)(&v.Type))
+			pTrim0(b, N, (*type1)(&v.Type))
 			trimLeftSpace(b, N)
 		case "data":
-			pTrim__9(b, N, (*type7)(&v.Data))
+			pTrim6(b, N, (*type7)(&v.Data))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
@@ -322,7 +321,7 @@ func (v *FtxOrderbookSafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__10(b, N, (*type8)(v))
+	pTrim7(b, N, (*type8)(v))
 	return nil
 }
 type FtxOrderbookUnsafe struct {
@@ -337,7 +336,7 @@ type FtxOrderbookUnsafe struct {
 		Action string
 	}
 }
-func pTrim__11(b *[]byte, N *int, v *type7) {
+func pTrim8(b *[]byte, N *int, v *type7) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -361,20 +360,20 @@ func pTrim__11(b *[]byte, N *int, v *type7) {
 			v.Checksum = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case "bids":
-			pTrim__8(b, N, (*type6)(&v.Bids))
+			pTrim5(b, N, (*type6)(&v.Bids))
 			trimLeftSpace(b, N)
 		case "asks":
-			pTrim__8(b, N, (*type6)(&v.Asks))
+			pTrim5(b, N, (*type6)(&v.Asks))
 			trimLeftSpace(b, N)
 		case "action":
-			pTrim__4(b, N, (*type1)(&v.Action))
+			pTrim2(b, N, (*type1)(&v.Action))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
 		}
 	}
 }
-func pTrim__12(b *[]byte, N *int, v *type8) {
+func pTrim9(b *[]byte, N *int, v *type8) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -392,16 +391,16 @@ func pTrim__12(b *[]byte, N *int, v *type8) {
 		nonEmpty = true
 		switch key {
 		case "channel":
-			pTrim__4(b, N, (*type1)(&v.Channel))
+			pTrim2(b, N, (*type1)(&v.Channel))
 			trimLeftSpace(b, N)
 		case "market":
-			pTrim__4(b, N, (*type1)(&v.Market))
+			pTrim2(b, N, (*type1)(&v.Market))
 			trimLeftSpace(b, N)
 		case "type":
-			pTrim__4(b, N, (*type1)(&v.Type))
+			pTrim2(b, N, (*type1)(&v.Type))
 			trimLeftSpace(b, N)
 		case "data":
-			pTrim__11(b, N, (*type7)(&v.Data))
+			pTrim8(b, N, (*type7)(&v.Data))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
@@ -422,6 +421,6 @@ func (v *FtxOrderbookUnsafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__12(b, N, (*type8)(v))
+	pTrim9(b, N, (*type8)(v))
 	return nil
 }
