@@ -1,5 +1,8 @@
 package gopyjson
 
+type type0 int64
+type type1 string
+type type2 bool
 type BinanceAggTradeSafe struct {
 	A int64
 	p string
@@ -10,7 +13,8 @@ type BinanceAggTradeSafe struct {
 	m bool
 	M bool
 }
-func pTrim__3(b *[]byte, N *int, v *BinanceAggTradeSafe) {
+type type3 BinanceAggTradeSafe
+func pTrim__3(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -87,7 +91,7 @@ func (v *BinanceAggTradeSafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__3(b, N, v)
+	pTrim__3(b, N, (*type3)(v))
 	return nil
 }
 type BinanceAggTradeUnsafe struct {
@@ -100,7 +104,7 @@ type BinanceAggTradeUnsafe struct {
 	m bool
 	M bool
 }
-func pTrim__5(b *[]byte, N *int, v *BinanceAggTradeUnsafe) {
+func pTrim__5(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -163,8 +167,18 @@ func (v *BinanceAggTradeUnsafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__5(b, N, v)
+	pTrim__5(b, N, (*type3)(v))
 	return nil
+}
+type type4 float64
+type type5 [2]float64
+type type6 [][2]float64
+type type7 struct {
+	Time float64
+	Checksum int64
+	Bids [][2]float64
+	Asks [][2]float64
+	Action string
 }
 type FtxOrderbookSafe struct {
 	Channel string
@@ -178,7 +192,8 @@ type FtxOrderbookSafe struct {
 		Action string
 	}
 }
-func pTrim__7(b *[]byte, N *int, v *[2]float64) {
+type type8 FtxOrderbookSafe
+func pTrim__7(b *[]byte, N *int, v *type5) {
 	pTrimByte(b, N, '[')
 	trimLeftSpace(b, N)
 	(*v)[0] = pTrimFloat64(b, N)
@@ -189,7 +204,7 @@ func pTrim__7(b *[]byte, N *int, v *[2]float64) {
 	trimLeftSpace(b, N)
 	pTrimByte(b, N, ']')
 }
-func pTrim__8(b *[]byte, N *int, v *[][2]float64) {
+func pTrim__8(b *[]byte, N *int, v *type6) {
 	var var__7 [2]float64
 	pTrimByte(b, N, '[')
 	trimLeftSpace(b, N)
@@ -200,7 +215,7 @@ func pTrim__8(b *[]byte, N *int, v *[][2]float64) {
 		*N++
 		return
 	}
-	pTrim__7(b, N, &var__7)
+	pTrim__7(b, N, (*type5)(&var__7))
 	*v = append(*v, var__7)
 	for {
 		trimLeftSpace(b, N)
@@ -214,17 +229,11 @@ func pTrim__8(b *[]byte, N *int, v *[][2]float64) {
 		pTrimByte(b, N, ',')
 		trimLeftSpace(b, N)
 		var var__7 [2]float64
-		pTrim__7(b, N, &var__7)
+		pTrim__7(b, N, (*type5)(&var__7))
 		*v = append(*v, var__7)
 	}
 }
-func pTrim__9(b *[]byte, N *int, v *struct {
-	Time float64
-	Checksum int64
-	Bids [][2]float64
-	Asks [][2]float64
-	Action string
-}) {
+func pTrim__9(b *[]byte, N *int, v *type7) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -248,10 +257,10 @@ func pTrim__9(b *[]byte, N *int, v *struct {
 			v.Checksum = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case "bids":
-			pTrim__8(b, N, &v.Bids)
+			pTrim__8(b, N, (*type6)(&v.Bids))
 			trimLeftSpace(b, N)
 		case "asks":
-			pTrim__8(b, N, &v.Asks)
+			pTrim__8(b, N, (*type6)(&v.Asks))
 			trimLeftSpace(b, N)
 		case "action":
 			{
@@ -268,7 +277,7 @@ func pTrim__9(b *[]byte, N *int, v *struct {
 		}
 	}
 }
-func pTrim__10(b *[]byte, N *int, v *FtxOrderbookSafe) {
+func pTrim__10(b *[]byte, N *int, v *type8) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -316,7 +325,7 @@ func pTrim__10(b *[]byte, N *int, v *FtxOrderbookSafe) {
 			}
 			trimLeftSpace(b, N)
 		case "data":
-			pTrim__9(b, N, &v.Data)
+			pTrim__9(b, N, (*type7)(&v.Data))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
@@ -337,7 +346,7 @@ func (v *FtxOrderbookSafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__10(b, N, v)
+	pTrim__10(b, N, (*type8)(v))
 	return nil
 }
 type FtxOrderbookUnsafe struct {
@@ -352,13 +361,7 @@ type FtxOrderbookUnsafe struct {
 		Action string
 	}
 }
-func pTrim__11(b *[]byte, N *int, v *struct {
-	Time float64
-	Checksum int64
-	Bids [][2]float64
-	Asks [][2]float64
-	Action string
-}) {
+func pTrim__11(b *[]byte, N *int, v *type7) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -382,10 +385,10 @@ func pTrim__11(b *[]byte, N *int, v *struct {
 			v.Checksum = pTrimInt64(b, N)
 			trimLeftSpace(b, N)
 		case "bids":
-			pTrim__8(b, N, &v.Bids)
+			pTrim__8(b, N, (*type6)(&v.Bids))
 			trimLeftSpace(b, N)
 		case "asks":
-			pTrim__8(b, N, &v.Asks)
+			pTrim__8(b, N, (*type6)(&v.Asks))
 			trimLeftSpace(b, N)
 		case "action":
 			v.Action = bytesToString(pTrimStringBytes(b, N))
@@ -395,7 +398,7 @@ func pTrim__11(b *[]byte, N *int, v *struct {
 		}
 	}
 }
-func pTrim__12(b *[]byte, N *int, v *FtxOrderbookUnsafe) {
+func pTrim__12(b *[]byte, N *int, v *type8) {
 	var nonEmpty bool
 	pTrimByte(b, N, '{')
 	trimLeftSpace(b, N)
@@ -422,7 +425,7 @@ func pTrim__12(b *[]byte, N *int, v *FtxOrderbookUnsafe) {
 			v.Type = bytesToString(pTrimStringBytes(b, N))
 			trimLeftSpace(b, N)
 		case "data":
-			pTrim__11(b, N, &v.Data)
+			pTrim__11(b, N, (*type7)(&v.Data))
 			trimLeftSpace(b, N)
 		default:
 			pTrimValue(b, N)
@@ -443,6 +446,6 @@ func (v *FtxOrderbookUnsafe) Unmarshal(data []byte) (err error) {
 	N := &n
 	b := &data
 	trimLeftSpace(b, N)
-	pTrim__12(b, N, v)
+	pTrim__12(b, N, (*type8)(v))
 	return nil
 }

@@ -1,5 +1,4 @@
 import shutil
-from typing import Tuple as PyTuple
 
 from go import *
 
@@ -29,12 +28,27 @@ class GoType:
     def __init__(self, typename: str = ''):
         self.typename = typename  # The Go typename for this type, can be empty
 
+    # Returns a hashable object such that if x.type_id() == y.type_id(),
+    # then pointers to underlying types of x and y can be converted one to another.
+    # Used to avoid duplicate code.
+    def type_id(self):
+        return type(self)
+
+    # Returns a hashable object such that if x.type_id() == y.type_id() and x.parser_id() == y.parser_id(),
+    # Then x and y generate equivalent parser code.
+    # Used to avoid duplicate code.
+    def parser_id(self):
+        return None
+
     # Generates code that parses this type from b starting at index N, saves result to object located at pvar
     def trim(self, pvar: str):
+        # Checks if the type was defined first
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         # Check if the parser was defined first
         new, f = Gopyjson.RegisterParser(self)
         assert not new
-        wl(f'pTrim__{f}(b, N, {pvar})')
+        wl(f'pTrim__{f}(b, N, (*type{t})({pvar}))')
 
     # Generates code that parses this type from b starting at index N using a given function, saves result to pvar.
     # This is used by simple types like integers or floats in combination with predefined parsers from common.go.
@@ -48,7 +62,7 @@ class GoType:
     def zero(self, pvar: str):
         raise NotImplementedError()
 
-    # Generates "long" type
+    # Generates the type definition
     def long_typename(self):
         raise NotImplementedError()
 
@@ -59,20 +73,19 @@ class GoType:
         else:
             self.long_typename()
 
-    # Returns if the go types are equal
-    def type_eq(self, other) -> bool:
-        return type(self) == type(other) and self.typename == other.typename
-
-    # Returns if the go types are equal and if their parser functions do the same thing
-    # For example, strings can be parsed with/without UTF8 validation, with/without copying, with/without unquoting
-    def parser_eq(self, other) -> bool:
-        return self.type_eq(other)
-
-    # Generates the type if the same type has not already been generated
+    # Generates the type declaration if the same type has not already been generated
     def generate_type(self):
-        if self.typename and Gopyjson.RegisterType(self):
+        new, t = Gopyjson.RegisterType(self)
+        if self.typename and self.typename not in Gopyjson.current.typenames:
+            Gopyjson.current.typenames.add(self.typename)
             wl(f'type {self.typename} ')
             self.long_typename()
+        if new:
+            if self.typename:
+                wl(f'type type{t} {self.typename}')
+            else:
+                wl(f'type type{t} ')
+                self.long_typename()
 
     # Generates the parser if an equivalent parser has not already been generated
     def generate_parser(self):
@@ -81,24 +94,24 @@ class GoType:
     # Generates the Unmarshal method for this type
     def generate(self, func_name: str = 'Unmarshal'):
         assert self.typename
-        self.generate_type()
-        self.generate_parser()
         if f'{self.typename}.{func_name}' in Gopyjson.current.unmarshalers:
             raise Exception(f'{self.typename}.{func_name} already defined')
-        else:
-            Gopyjson.current.unmarshalers.add(f'{self.typename}.{func_name}')
-            with Func(f'(v *{self.typename}) {func_name}(data []byte) (err error)'):
-                self.zero('v')
-                wl('defer RecoverLater(&err)')
-                wl('var n int')
-                wl('N := &n')
-                wl('b := &data')
-                wl('trimLeftSpace(b, N)')
-                self.trim('v')
-                wl('return nil')
 
-    # Returns (self, json_field), used with Struct() when Go struct fields and json fields don't have same names
-    def __floordiv__(self, json_field: str) -> PyTuple['GoType', str]:
+        Gopyjson.current.unmarshalers.add(f'{self.typename}.{func_name}')
+        self.generate_type()
+        self.generate_parser()
+        with Func(f'(v *{self.typename}) {func_name}(data []byte) (err error)'):
+            self.zero('v')
+            wl('defer RecoverLater(&err)')
+            wl('var n int')
+            wl('N := &n')
+            wl('b := &data')
+            wl('trimLeftSpace(b, N)')
+            self.trim('v')
+            wl('return nil')
+
+    # Syntactic sugar for (self, json_field), used with Struct() fields that don't have the same name as json field
+    def __floordiv__(self, json_field: str) -> tuple['GoType', str]:
         return self, json_field
 
 
@@ -167,12 +180,18 @@ class String(GoType):
     # Arguments
     # copy: whether the result should be a copy or just a reference to a part of the buffer we are parsing from
     # validate_utf8: turn on/off UTF8 validation for this string
-    # unquote: turn on/off unquoting for this string
+    # unquote: turn on/off unquoting for this string, which makes substitutions like '\\\\' -> '\\', '\\t' -> '\t'...
     def __init__(self, copy: bool = True, validate_utf8: bool = True, unquote: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.copy = copy
         self.validate_utf8 = validate_utf8
         self.unquote = unquote
+
+    def type_id(self):
+        return String
+
+    def parser_id(self):
+        return self.copy, self.validate_utf8, self.unquote
 
     def trim(self, pvar: str):
         if self.typename:
@@ -213,12 +232,6 @@ class String(GoType):
     def zero(self, pvar: str):
         wl(f'{dereference(pvar)} = ""')
 
-    def type_eq(self, other) -> bool:
-        return isinstance(other, String) and self.typename == other.typename
-
-    def parser_eq(self, other) -> bool:
-        return self.type_eq(other) and other.copy == self.copy and other.validate_utf8 == self.validate_utf8
-
     def long_typename(self):
         w('string')
 
@@ -246,8 +259,11 @@ class Array(GoType):
         self.print_type()
         w('{}')
 
-    def type_eq(self, other) -> bool:
-        return super().type_eq(other) and self.size == other.size and self.element_type.type_eq(other.element_type)
+    def type_id(self):
+        return Array, self.size, self.element_type.type_id(), self.element_type.typename
+
+    def parser_id(self):
+        return self.size, self.element_type.parser_id()
 
     def generate_type(self):
         self.element_type.generate_type()
@@ -255,12 +271,11 @@ class Array(GoType):
 
     def generate_parser(self):
         self.element_type.generate_parser()
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         new, f = Gopyjson.RegisterParser(self)
         if new:
-            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-            self.print_type()
-            w(') ')
-            with Braces():
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wl("pTrimByte(b, N, '[')")
                 wl('trimLeftSpace(b, N)')
                 for i in range(self.size):
@@ -278,13 +293,11 @@ class Tuple(GoType):
         super().__init__(typename=typename)
         self.fields: dict[str, GoType] = fields
 
-    def type_eq(self, other) -> bool:
-        return super().type_eq(other) and len(other.fields) == len(self.fields) and all(
-            k1 == k2 and t1.type_eq(t2) for ((k1, t1), (k2, t2)) in zip(self.fields.items(), other.fields.items()))
+    def type_id(self):
+        return Tuple, tuple((k, v.type_id()) for k, v in self.fields.items())
 
-    def parser_eq(self, other) -> bool:
-        return self.type_eq(other) and all(
-            k1 == k2 and t1.parser_eq(t2) for ((k1, t1), (k2, t2)) in zip(self.fields.items(), other.fields.items()))
+    def parser_id(self):
+        return super().parser_id(), tuple((k, v.parser_id()) for k, v in self.fields.items())
 
     def long_typename(self):
         w(f'struct {{')
@@ -305,12 +318,11 @@ class Tuple(GoType):
     def generate_parser(self):
         for t in self.fields.values():
             t.generate_parser()
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         new, f = Gopyjson.RegisterParser(self)
         if new:
-            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-            self.print_type()
-            w(') ')
-            with Braces():
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wl("pTrimByte(b, N, '[')")
                 wl('trimLeftSpace(b, N)')
                 for i, (key, t) in enumerate(self.fields.items()):
@@ -332,8 +344,11 @@ class Slice(GoType):
         super().__init__(**kwargs)
         self.element_type = element_type
 
-    def type_eq(self, other) -> bool:
-        return super().type_eq(other) and self.element_type.type_eq(other.element_type)
+    def type_id(self):
+        return Slice, self.element_type.type_id(), self.element_type.typename
+
+    def parser_id(self):
+        return self.element_type.parser_id()
 
     def zero(self, pvar: str):
         # Here we just slice the slice, to avoid garbage collection.
@@ -350,12 +365,11 @@ class Slice(GoType):
 
     def generate_parser(self):
         self.element_type.generate_parser()
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         new, f = Gopyjson.RegisterParser(self)
         if new:
-            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-            self.print_type()
-            w(') ')
-            with Braces():
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 element_var = f'var__{Gopyjson.RegisterParser(self.element_type)[1]}'
                 wl(f'var {element_var} ')
                 self.element_type.print_type()
@@ -385,21 +399,18 @@ class Slice(GoType):
 
 # Used for parsing JSON objects with known keys and known value types into a Go struct
 class Struct(GoType):
-    def __init__(self, fields: dict[str, GoType | PyTuple[GoType, str]], typename: str = '', other_keys: str = 'skip'):
+    def __init__(self, fields: dict[str, GoType | tuple[GoType, str]], typename: str = '', other_keys: str = 'skip'):
         assert other_keys == 'skip' or other_keys == 'fail'
         super().__init__(typename=typename)
         self.fields: dict[str, GoType] = {k: v[0] if type(v) == tuple else v for k, v in fields.items()}
         self.names: dict[str, str] = {k: v[1] if type(v) == tuple else k for k, v in fields.items()}
         self.other_keys = other_keys
 
-    def type_eq(self, other) -> bool:
-        return super().type_eq(other) and len(other.fields) == len(self.fields) and all(
-            k1 == k2 and t1.type_eq(t2) for ((k1, t1), (k2, t2)) in
-            zip(self.fields.items(), other.fields.items()))
+    def type_id(self):
+        return Struct, tuple((k, v.type_id(), v.typename) for k, v in self.fields.items())
 
-    def parser_eq(self, other) -> bool:
-        return self.type_eq(other) and all(k1 == k2 and t1.parser_eq(t2) for ((k1, t1), (k2, t2)) in
-                                           zip(self.fields.items(), other.fields.items())) and self.names == other.names
+    def parser_id(self):
+        return tuple(v.parser_id() for v in self.fields.values()), self.other_keys
 
     def long_typename(self):
         w(f'struct {{')
@@ -420,12 +431,12 @@ class Struct(GoType):
     def generate_parser(self):
         for t in self.fields.values():
             t.generate_parser()
+
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         new, f = Gopyjson.RegisterParser(self)
         if new:
-            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-            self.print_type()
-            w(') ')
-            with Braces():
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
                 var nonEmpty bool
                 pTrimByte(b, N, '{')
@@ -507,13 +518,11 @@ class Map(GoType):
         self.key_type: String = key_type
         self.value_type = value_type
 
-    def type_eq(self, other) -> bool:
-        return super().type_eq(other) and self.key_type.type_eq(other.key_type) and self.value_type.type_eq(
-            other.value_type)
+    def type_id(self):
+        return Map, self.key_type.type_id(), self.key_type.typename, self.value_type.type_id(), self.value_type.typename
 
-    def parser_eq(self, other) -> bool:
-        return self.type_eq(other) and self.key_type.parser_eq(other.key_type) and self.value_type.parser_eq(
-            other.value_type)
+    def parser_id(self):
+        return self.key_type.parser_id(), self.value_type.parser_id()
 
     def long_typename(self):
         w('map[')
@@ -529,12 +538,12 @@ class Map(GoType):
     def generate_parser(self):
         self.key_type.generate_parser()
         self.value_type.generate_parser()
+
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         new, f = Gopyjson.RegisterParser(self)
         if new:
-            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-            self.print_type()
-            w(') ')
-            with Braces():
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
                 var nonEmpty bool
                 pTrimByte(b, N, '{')
@@ -615,12 +624,11 @@ class Float64WithSrc(GoType):
             wl('Src []byte')
 
     def generate_parser(self):
+        new, t = Gopyjson.RegisterType(self)
+        assert not new
         new, f = Gopyjson.RegisterParser(self)
         if new:
-            wl(f'func pTrim__{f}(b *[]byte, N *int, v *')
-            self.print_type()
-            w(') ')
-            with Braces():
+            with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
                 n := *N
                 v.Value = pTrimFloat64(b, N)
@@ -637,9 +645,10 @@ class Gopyjson:
     # Argument output_dir is the directory where we want to save the generated code
     def __init__(self, output_dir: str):
         self.output_dir = output_dir
-        self.types: list[GoType] = []  # List of defined types
-        self.parsers: list[GoType] = []  # List of defined parser functions
-        self.unmarshalers: set[str] = set()  # List of defined unmarshalers
+        self.types: dict[any, int] = {}  # Defined types, saved as a mapping type_id -> unique integer
+        self.parsers: dict[any, int] = {}  # Defined parsers, saved as a mapping (type_id, parser_id) -> unique integer
+        self.typenames: set[str] = set()  # Defined typenames
+        self.unmarshalers: set[str] = set()  # Defined unmarshalers
 
     def __enter__(self):
         assert Gopyjson.current is None  # Nested context manager not allowed
@@ -662,19 +671,19 @@ class Gopyjson:
     # Registers the given type if an equal type was not registered already.
     # Returns whether the type was registered.
     @staticmethod
-    def RegisterType(go_type: GoType) -> bool:
-        for t in Gopyjson.current.types:
-            if go_type.type_eq(t):
-                return False
-        Gopyjson.current.types.append(go_type)
-        return True
+    def RegisterType(parser: GoType) -> tuple[bool, int]:
+        pid = parser.type_id()
+        if pid in Gopyjson.current.types:
+            return False, Gopyjson.current.types[pid]
+        Gopyjson.current.types[pid] = len(Gopyjson.current.types)
+        return True, len(Gopyjson.current.types) - 1
 
     # Registers the parser for a given type if an equivalent parser was not registered already.
     # Returns whether if was registered and its unique index in the list of registered types
     @staticmethod
-    def RegisterParser(go_type: 'GoType') -> tuple[bool, int]:
-        for i, t in enumerate(Gopyjson.current.parsers):
-            if go_type.parser_eq(t):
-                return False, i
-        Gopyjson.current.parsers.append(go_type)
+    def RegisterParser(parser: GoType) -> tuple[bool, int]:
+        pid = (parser.type_id(), parser.parser_id())
+        if pid in Gopyjson.current.parsers:
+            return False, Gopyjson.current.parsers[pid]
+        Gopyjson.current.parsers[pid] = len(Gopyjson.current.parsers)
         return True, len(Gopyjson.current.parsers) - 1
