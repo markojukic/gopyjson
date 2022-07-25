@@ -34,7 +34,7 @@ We can use gopyjson to generate Go code for parsing the json above:
 ```python
 from gopyjson import *
 
-with Gopyjson('path/to/your/project'):
+with Package('path/to/your/project'):
     levels = Slice(Array(2, Float64()))
     Struct({
         'Channel': String() // 'channel',

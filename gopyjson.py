@@ -43,10 +43,10 @@ class GoType:
     # Generates code that parses this type from b starting at index N, saves result to object located at pvar
     def trim(self, pvar: str):
         # Checks if the type was defined first
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
         # Check if the parser was defined first
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         assert not new
         wl(f'pTrim__{f}(b, N, (*type{t})({pvar}))')
 
@@ -75,9 +75,9 @@ class GoType:
 
     # Generates the type declaration if the same type has not already been generated
     def generate_type(self):
-        new, t = Gopyjson.RegisterType(self)
-        if self.typename and self.typename not in Gopyjson.current.typenames:
-            Gopyjson.current.typenames.add(self.typename)
+        new, t = Package.RegisterType(self)
+        if self.typename and self.typename not in Package.current.typenames:
+            Package.current.typenames.add(self.typename)
             wl(f'type {self.typename} ')
             self.long_typename()
         if new:
@@ -89,15 +89,15 @@ class GoType:
 
     # Generates the parser if an equivalent parser has not already been generated
     def generate_parser(self):
-        Gopyjson.RegisterParser(self)
+        Package.RegisterParser(self)
 
     # Generates the Unmarshal method for this type
     def generate(self, func_name: str = 'Unmarshal'):
         assert self.typename
-        if f'{self.typename}.{func_name}' in Gopyjson.current.unmarshalers:
+        if f'{self.typename}.{func_name}' in Package.current.unmarshalers:
             raise Exception(f'{self.typename}.{func_name} already defined')
 
-        Gopyjson.current.unmarshalers.add(f'{self.typename}.{func_name}')
+        Package.current.unmarshalers.add(f'{self.typename}.{func_name}')
         self.generate_type()
         self.generate_parser()
         with Func(f'(v *{self.typename}) {func_name}(data []byte) (err error)'):
@@ -271,9 +271,9 @@ class Array(GoType):
 
     def generate_parser(self):
         self.element_type.generate_parser()
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wl("pTrimByte(b, N, '[')")
@@ -318,9 +318,9 @@ class Tuple(GoType):
     def generate_parser(self):
         for t in self.fields.values():
             t.generate_parser()
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wl("pTrimByte(b, N, '[')")
@@ -365,12 +365,12 @@ class Slice(GoType):
 
     def generate_parser(self):
         self.element_type.generate_parser()
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
-                element_var = f'var__{Gopyjson.RegisterParser(self.element_type)[1]}'
+                element_var = f'var__{Package.RegisterParser(self.element_type)[1]}'
                 wl(f'var {element_var} ')
                 self.element_type.print_type()
                 wl("pTrimByte(b, N, '[')")
@@ -432,9 +432,9 @@ class Struct(GoType):
         for t in self.fields.values():
             t.generate_parser()
 
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
@@ -539,9 +539,9 @@ class Map(GoType):
         self.key_type.generate_parser()
         self.value_type.generate_parser()
 
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
@@ -587,7 +587,7 @@ class QuotedFloat64(GoType):
         w('float64')
 
     def generate_parser(self):
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             wls('''
             func pTrimQuotedFloat64(b *[]byte, N *int) float64 {
@@ -624,9 +624,9 @@ class Float64WithSrc(GoType):
             wl('Src []byte')
 
     def generate_parser(self):
-        new, t = Gopyjson.RegisterType(self)
+        new, t = Package.RegisterType(self)
         assert not new
-        new, f = Gopyjson.RegisterParser(self)
+        new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim__{f}(b *[]byte, N *int, v *type{t})'):
                 wls('''
@@ -639,8 +639,8 @@ class Float64WithSrc(GoType):
 
 # This context manager takes care of managing the set of defined types, parsers and unmarshalers.
 # Also, it also takes care of writing all the generated code into Go files inside the provided directory path.
-class Gopyjson:
-    current: 'Gopyjson' = None
+class Package:
+    current: 'Package' = None
 
     # Argument output_dir is the directory where we want to save the generated code
     def __init__(self, output_dir: str):
@@ -651,8 +651,8 @@ class Gopyjson:
         self.unmarshalers: set[str] = set()  # Defined unmarshalers
 
     def __enter__(self):
-        assert Gopyjson.current is None  # Nested context manager not allowed
-        Gopyjson.current = self
+        assert Package.current is None  # Nested context manager not allowed
+        Package.current = self
         output_dir = Path(self.output_dir)
         if not output_dir.is_dir():
             raise Exception("Directory doesn't exist: " + str(output_dir))
@@ -666,24 +666,24 @@ class Gopyjson:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.file.__exit__(exc_type, exc_val, exc_tb)
-        Gopyjson.current = None
+        Package.current = None
 
     # Registers the given type if an equal type was not registered already.
     # Returns whether the type was registered.
     @staticmethod
     def RegisterType(parser: GoType) -> tuple[bool, int]:
         pid = parser.type_id()
-        if pid in Gopyjson.current.types:
-            return False, Gopyjson.current.types[pid]
-        Gopyjson.current.types[pid] = len(Gopyjson.current.types)
-        return True, len(Gopyjson.current.types) - 1
+        if pid in Package.current.types:
+            return False, Package.current.types[pid]
+        Package.current.types[pid] = len(Package.current.types)
+        return True, len(Package.current.types) - 1
 
     # Registers the parser for a given type if an equivalent parser was not registered already.
     # Returns whether if was registered and its unique index in the list of registered types
     @staticmethod
     def RegisterParser(parser: GoType) -> tuple[bool, int]:
         pid = (parser.type_id(), parser.parser_id())
-        if pid in Gopyjson.current.parsers:
-            return False, Gopyjson.current.parsers[pid]
-        Gopyjson.current.parsers[pid] = len(Gopyjson.current.parsers)
-        return True, len(Gopyjson.current.parsers) - 1
+        if pid in Package.current.parsers:
+            return False, Package.current.parsers[pid]
+        Package.current.parsers[pid] = len(Package.current.parsers)
+        return True, len(Package.current.parsers) - 1
