@@ -175,17 +175,24 @@ func pTrimFloat64(b *[]byte, N *int) float64 {
 }
 
 // pTrimStringBytes reads a quote-delimited string from b starting at position N and returns the string inside the quotes as []byte
-func pTrimStringBytes(b *[]byte, N *int) (s []byte) {
+func pTrimStringBytes(b *[]byte, N *int) (result []byte) {
 	panicEof(b, N, errEofString)
 	if (*b)[*N] != '"' {
 		panic(ParseError{*b, *N, errExpectedString})
 	}
 	*N++
-	for n := *N; *N < len(*b); *N++ {
-		if (*b)[*N] == '"' && (*b)[*N-1] != '\\' {
-			s = (*b)[n:*N]
-			*N++
-			return
+	for start := *N; *N < len(*b); *N++ {
+		if (*b)[*N] == '"' {
+			// Check if there is an even number of backslashes preceding this quote
+			firstBackslash := *N - 1
+			for (*b)[firstBackslash] == '\\' {
+				firstBackslash--
+			}
+			if (*N-firstBackslash)%2 != 0 {
+				result = (*b)[start:*N]
+				*N++
+				return
+			}
 		}
 	}
 	panic(ParseError{*b, *N, errEofCloseQuote})

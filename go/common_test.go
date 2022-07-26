@@ -1,7 +1,6 @@
 package gopyjson
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"reflect"
@@ -201,18 +200,18 @@ func TestTrimFloat64(t *testing.T) {
 			f = pTrimFloat64(&b, &N)
 			return
 		},
-		func(s string) (f float64, N int, err error) {
-			defer recoverError(&err)
-			b := []byte(s)
-			result := pTrimFloat64WithSrc(&b, &N)
-			if len(result.Src) != N {
-				t.Error("len(src) is invalid")
-			} else if !bytes.HasPrefix(b, result.Src) {
-				t.Error("src is invalid")
-			}
-			f = result.Value
-			return
-		},
+		//func(s string) (f float64, N int, err error) {
+		//	defer recoverError(&err)
+		//	b := []byte(s)
+		//	result := pTrimFloat64WithSrc(&b, &N)
+		//	if len(result.Src) != N {
+		//		t.Error("len(src) is invalid")
+		//	} else if !bytes.HasPrefix(b, result.Src) {
+		//		t.Error("src is invalid")
+		//	}
+		//	f = result.Value
+		//	return
+		//},
 	}
 	for _, f := range F {
 		// Valid
@@ -285,6 +284,8 @@ func TestTrimString(t *testing.T) {
 	test(t, f, `""`, ``, 2, nil)
 	test(t, f, `"a"`, `a`, 3, nil)
 	test(t, f, `"\""`, `\"`, 4, nil)
+	test(t, f, `"\\"`, `\\`, 4, nil)
+	test(t, f, `"\"\\"`, `\"\\`, 6, nil)
 	// Invalid
 	test(t, f, `"`, ``, 1, checkParseError(errEofCloseQuote))
 	test(t, f, `"\"`, ``, 3, checkParseError(errEofCloseQuote))
