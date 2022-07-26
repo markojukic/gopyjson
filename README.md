@@ -47,7 +47,7 @@ with Package('path/to/your/project'):
             'Asks': levels // 'asks',
             'Action': String() // 'action',
         }) // 'data'
-    }, 'FtxOrderbookSafe').generate()
+    }, 'FtxOrderbook').generate()
 ```
 The Python code creates a Go package `gopyjson` inside directory `path/to/your/project/gopyjson` with two files:
 - `gopyjson.go` contains all the generated Go types and parsers
