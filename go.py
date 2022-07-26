@@ -2,35 +2,6 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
-# Appends s to the end of current block
-def w(s: str):
-    File.current.buffer += s
-
-
-# Flushes the current line and writes string s to the next line (with indent)
-def wl(s: str = ''):
-    File.current.buffer += '\n' + File.current.tab * File.current.indent + s
-
-
-# Indents the generated code
-@contextmanager
-def Indent(indent: int = 1):
-    File.current.indent += indent
-    yield
-    File.current.indent -= indent
-
-
-@contextmanager
-def Braces(new_line=False):
-    if new_line:
-        wl('{')
-    else:
-        w('{')
-    with Indent():
-        yield
-    wl('}')
-
-
 # File objects are used to generate code and save the result in a file.
 class File:
     current: 'File' = None
@@ -60,6 +31,36 @@ class File:
                 f.write(')\n')
             f.write(self.buffer)
         File.current = None
+
+
+# Appends s to the end of current block
+def w(s: str):
+    File.current.buffer += s
+
+
+# Flushes the current line and writes string s to the next line (with indent)
+def wl(s: str = ''):
+    File.current.buffer += '\n' + File.current.tab * File.current.indent + s
+
+
+# Indents the generated code
+@contextmanager
+def Indent(indent: int = 1):
+    File.current.indent += indent
+    yield
+    File.current.indent -= indent
+
+
+# Wraps the code in braces, with optional flushing before the opening brace
+@contextmanager
+def Braces(new_line=False):
+    if new_line:
+        wl('{')
+    else:
+        w('{')
+    with Indent():
+        yield
+    wl('}')
 
 
 # Removes leading space (and tabs) from s, returns how much space
