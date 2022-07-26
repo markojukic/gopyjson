@@ -1,3 +1,5 @@
+# This file contains parser generators for supported types.
+
 import shutil
 
 from go import *

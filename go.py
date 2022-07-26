@@ -1,8 +1,12 @@
+# This file contains general Python code for generating Go code.
+
 from contextlib import contextmanager
 from pathlib import Path
 
 
-# File objects are used to generate code and save the result in a file.
+# All code generation is done inside the File context manager.
+# File context manager manages a buffer where all generated code goes to, current indent and a list of imports.
+# When the context manager exits, the generated code is written to the provided file location.
 class File:
     current: 'File' = None
 
@@ -12,7 +16,7 @@ class File:
         assert filepath.name.endswith('.go')
         self.filepath: Path = filepath
         self.tab: str = '\t'  # Used for indenting generated code
-        self.tabsize: int = 4  # Tab size for wl(), wls(), WLS()
+        self.tabsize: int = 4  # Tab size in input code, used by wls(), WLS().
         self.imports: dict[str, str] = {}  # List of packages to import as a mapping package -> alias
         self.buffer = ''
         self.indent = 0
@@ -27,7 +31,7 @@ class File:
             if self.imports:
                 f.write('\nimport (\n')
                 for package, alias in sorted(self.imports.items()):
-                    f.write(self.tabsize * ' ' + (alias + ' ' if alias else '') + '"' + package + '"\n')
+                    f.write(File.current.tab + (alias + ' ' if alias else '') + '"' + package + '"\n')
                 f.write(')\n')
             f.write(self.buffer)
         File.current = None

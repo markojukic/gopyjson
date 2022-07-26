@@ -1,3 +1,9 @@
+// This file contains common Go code, e.g. code for parsing integers, floats, bound checking, error handling...
+// Most functions have signature like "func pTrimSomeType(b *[]byte, N *int) SomeType".
+// - Argument b is the JSON string we are parsing, and N is the position where we start parsing the value.
+// - We pass pointers instead of values because that seems faster in benchmarks.
+// If function name starts with letter p, that means the function panics on unexpected input.
+
 package gopyjson
 
 import (

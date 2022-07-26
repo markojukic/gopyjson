@@ -1,7 +1,7 @@
 package gopyjson
 
 import (
-    "unicode/utf8"
+	"unicode/utf8"
 )
 
 type type0 int64
