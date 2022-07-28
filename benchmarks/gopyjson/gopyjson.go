@@ -20,14 +20,14 @@ type BinanceAggTradeSafe struct {
 type type3 BinanceAggTradeSafe
 func pTrim0(b *[]byte, N *int, v *type1) {
 	s := pTrimStringBytes(b, N)
+	if !utf8.Valid(s) {
+		panic(ParseError{*b, *N, errUTF8})
+	}
 	s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])
 	if !ok {
 		panic(ParseError{*b, *N, errUnquote})
 	}
 	*v = type1(s)
-	if !utf8.ValidString(string(*v)) {
-		panic(ParseError{*b, *N, errUTF8})
-	}
 }
 func pTrim1(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool
@@ -106,7 +106,8 @@ type BinanceAggTradeUnsafe struct {
 	M bool
 }
 func pTrim2(b *[]byte, N *int, v *type1) {
-	*v = type1(bytesToString(pTrimStringBytes(b, N)))
+	s := pTrimStringBytes(b, N)
+	*v = type1(bytesToString(s))
 }
 func pTrim3(b *[]byte, N *int, v *type3) {
 	var nonEmpty bool

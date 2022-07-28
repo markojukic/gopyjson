@@ -188,7 +188,7 @@ class String(Parser):
     def __init__(self, copy: bool = True, validate_utf8: bool = True, unquote: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.copy = copy
-        self.validate_utf8 = validate_utf8
+        self.validate_utf8 = validate_utf8 or unquote  # Always validating before unquoting
         self.unquote = unquote
 
     def type_id(self):
@@ -203,21 +203,19 @@ class String(Parser):
         new, f = Package.RegisterParser(self)
         if new:
             with Func(f'pTrim{f}(b *[]byte, N *int, v *type{t})'):
+                wl('s := pTrimStringBytes(b, N)')
+                if self.validate_utf8:  # Validating before unquoting
+                    Import('unicode/utf8')
+                    with If(f'!utf8.Valid(s)'):
+                        wl('panic(ParseError{*b, *N, errUTF8})')
                 if self.unquote:
-                    wl('s := pTrimStringBytes(b, N)')
                     wl('s, ok := unquoteBytes((*b)[*N - len(s) - 2:*N])')  # Copy made here
                     with If('!ok'):
                         wl('panic(ParseError{*b, *N, errUnquote})')
-                    wl(f'*v = type{t}(s)')  # Compiler avoids a copy here, no need to use bytesToString()
+                if self.copy:
+                    wl(f'*v = type{t}(s)')  # Compiler can avoid another copy here
                 else:
-                    if self.copy:
-                        wl(f'*v = type{t}(pTrimStringBytes(b, N))')
-                    else:
-                        wl(f'*v = type{t}(bytesToString(pTrimStringBytes(b, N)))')
-                if self.validate_utf8:
-                    Import('unicode/utf8')
-                    with If(f'!utf8.ValidString(string(*v))'):
-                        wl('panic(ParseError{*b, *N, errUTF8})')
+                    wl(f'*v = type{t}(bytesToString(s))')
 
     def zero(self, pvar: str):
         wl(f'{dereference(pvar)} = ""')
